@@ -136,7 +136,8 @@ describe('Calendar explorer', () => {
     const user = userEvent.setup()
     await renderScenario()
     await user.click(screen.getByRole('button', { name: '+1 more' }))
-    const dialog = await screen.findByRole('dialog')
+    const dayTitle = await screen.findByText('Saturday, September 12, 2026')
+    const dialog = dayTitle.closest('[role="dialog"]')!
     const hiddenEvent = within(dialog).getByRole('button', {
       name: /Walk, Run, Ride/,
       hidden: true
