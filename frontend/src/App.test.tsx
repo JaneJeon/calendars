@@ -324,7 +324,10 @@ describe('Calendar explorer', () => {
     await user.click(
       await screen.findByRole('button', { name: /Neighborhood cleanup/ })
     )
-    const detail = await screen.findByRole('dialog')
+    const detailTitle = await screen.findByText('Neighborhood cleanup', {
+      selector: 'h3'
+    })
+    const detail = detailTitle.closest<HTMLElement>('[role="dialog"]')!
     expect(
       within(detail).getAllByText('Downtown San Mateo events').length
     ).toBeGreaterThan(0)
