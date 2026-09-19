@@ -137,11 +137,14 @@ describe('Calendar explorer', () => {
     await renderScenario()
     await user.click(screen.getByRole('button', { name: '+1 more' }))
     const dayTitle = await screen.findByText('Saturday, September 12, 2026')
-    const dialog = dayTitle.closest('[role="dialog"]')!
-    const hiddenEvent = within(dialog).getByRole('button', {
-      name: /Walk, Run, Ride/,
-      hidden: true
-    })
+    const dialog = dayTitle.closest<HTMLElement>('[role="dialog"]')!
+    const hiddenEvent = dialog.querySelector<HTMLButtonElement>(
+      '[id^="calendar-overflow-event-"]'
+    )!
+    expect(hiddenEvent).toHaveAttribute(
+      'aria-label',
+      'Walk, Run, Ride to the Moon, All day, Central Park'
+    )
     await user.click(hiddenEvent)
     expect(within(dialog).getByText('Event details')).toBeInTheDocument()
     const back = screen
