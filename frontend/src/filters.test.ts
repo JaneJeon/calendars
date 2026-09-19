@@ -11,6 +11,7 @@ import {
   defaultExplorerState,
   readExplorerState,
   reconcileDtsmFilters,
+  reconcileExplorerState,
   selectionSummary,
   sortFilterOptions,
   toggleId,
@@ -163,6 +164,31 @@ describe('explorer filters and persistence', () => {
         options
       )
     ).toEqual({ venueIds: null, organizerIds: [700], categoryIds: null })
+  })
+
+  it('derives a reconciled explorer state whenever discovery is available', () => {
+    const state = {
+      ...defaultExplorerState(false, new Date('2026-09-12T12:00:00Z')),
+      filters: {
+        ...defaultExplorerState(false).filters,
+        dtsm: {
+          venueIds: [999],
+          organizerIds: [700, 999],
+          categoryIds: []
+        }
+      }
+    }
+    expect(reconcileExplorerState(state)).toBe(state)
+    expect(reconcileExplorerState(state, options)).toMatchObject({
+      month: '2026-09',
+      filters: {
+        dtsm: {
+          venueIds: [...dtsmDefaultVenueIds],
+          organizerIds: [700],
+          categoryIds: []
+        }
+      }
+    })
   })
 
   it('builds canonical DTSM URLs for default, unrestricted, subset, and empty states', () => {

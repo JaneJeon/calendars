@@ -7,9 +7,15 @@ design contract; there is no light theme.
 
 ## Architecture
 
-- `App.tsx` owns the explorer shell and interaction contracts: calendar
-  selection, filters, month navigation, Grid/List, event disclosure, busy-day
-  overflow, and subscription actions.
+- `App.tsx` is the state/data orchestrator. It owns query identity, persisted
+  explorer state, context transitions, and selection clearing; it does not own
+  component rendering details.
+- `components/ExplorerHeader.tsx` owns calendar identity and subscription
+  actions. `ExplorerFilters.tsx` owns per-calendar filter controls.
+  `CalendarPanel.tsx` owns period and representation controls,
+  `CalendarViews.tsx` owns Grid/List and busy-day overflow, and
+  `EventDetails.tsx` owns event representations and disclosure.
+- `content.ts` owns product labels; `use-media.ts` owns responsive observation.
 - `api.ts` owns TanStack Query request functions. Development requests use
   `http://localhost:8787`; production requests use
   `https://cal.janejeon.dev`.

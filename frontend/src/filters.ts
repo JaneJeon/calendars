@@ -215,6 +215,20 @@ export function reconcileDtsmFilters(
   }
 }
 
+export function reconcileExplorerState(
+  state: ExplorerState,
+  options?: DtsmFilterOptionsResponse
+): ExplorerState {
+  if (!options) return state
+  return {
+    ...state,
+    filters: {
+      ...state.filters,
+      dtsm: reconcileDtsmFilters(state.filters.dtsm, options)
+    }
+  }
+}
+
 function canonicalIds(values: number[]): number[] {
   return [...new Set(values)].sort((left, right) => left - right)
 }

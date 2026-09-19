@@ -124,10 +124,12 @@ describe('Calendar explorer', () => {
       'aria-label',
       'Yoga in the Park details'
     )
-    expect(screen.getByText('View event source').closest('a')).toHaveAttribute(
+    const sourceLink = screen.getByText('View event source').closest('a')
+    expect(sourceLink).toHaveAttribute(
       'href',
       'https://example.com/events/yoga'
     )
+    expect(sourceLink).not.toHaveAttribute('type')
     await user.keyboard('{Escape}')
     await waitFor(() => expect(trigger).toHaveFocus())
   })
