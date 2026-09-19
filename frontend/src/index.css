@@ -1,21 +1,13 @@
 :root {
-  font-family: system-ui, sans-serif;
-  color: #1f2937;
-  background: #f8fafc;
+  color-scheme: dark;
+  background: #0e1621;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
 
-body {
+html,
+body,
+#root {
+  min-height: 100%;
   margin: 0;
-}
-
-main {
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 4rem 1.5rem;
-}
-
-a {
-  color: #2563eb;
 }

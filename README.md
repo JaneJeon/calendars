@@ -4,7 +4,8 @@ A stateless Cloudflare Worker that serves iCalendar feeds at
 `cal.janejeon.dev/<path>`. Subscribe to one from any calendar client that
 supports ICS subscriptions (Fastmail, Google Calendar, Apple Calendar).
 It currently serves Codex weekly usage-limit resets and Downtown San Mateo
-events. A small React/Vite frontend is deployed at `cal.janejeon.com`.
+events. The production React calendar explorer is deployed at
+`cal.janejeon.com`.
 
 Feed URL:
 
@@ -12,6 +13,11 @@ Feed URL:
 https://cal.janejeon.dev/codex-resets.ics
 https://cal.janejeon.dev/dtsm-events.ics
 ```
+
+The explorer renders these live feeds, remembers the selected month,
+representation, and per-calendar filters locally, and always subscribes to the
+same canonical filtered URL being previewed. The month limits only the preview,
+not the subscription.
 
 ## What it does
 
@@ -41,15 +47,37 @@ The DTSM feed accepts comma-separated venue, organizer, and category IDs:
 ```
 https://cal.janejeon.dev/dtsm-events.ics?venues=1201,1137
 https://cal.janejeon.dev/dtsm-events.ics?organizers=700&categories=80,81
+https://cal.janejeon.dev/dtsm-events.ics?scope=all
 ```
 
 Within one parameter, an event can match any listed ID. Supplying multiple
 parameters requires a match in each group. Omitted groups are unrestricted.
 With no query parameters, the feed keeps its six configured default venues.
+`scope=all` selects the unrestricted catalog; it cannot be combined with an
+entity filter. The explorer discovers available entities from:
+
+```text
+https://cal.janejeon.dev/dtsm-events/options.json
+```
+
+That response contains the default venue IDs plus every venue, organizer, and
+category referenced by a non-withdrawn stored event.
+
 Each DTSM response is cached for one hour, while the shared D1 catalog refreshes
 from DSMA at most once per day. The default KV fallback is retained
 indefinitely. Inactive custom-filter variants expire from KV after 30 days;
 regularly polled subscriptions renew their variant during hourly rebuilds.
+
+The Codex feed can be narrowed by reset type:
+
+```text
+https://cal.janejeon.dev/codex-resets.ics?types=regular,banked
+https://cal.janejeon.dev/codex-resets.ics?types=scheduled,forecast
+```
+
+Accepted values are `regular`, `banked`, `scheduled`, and `forecast`.
+Omission—or all four values—uses the stable base feed. Canonical custom
+variants are retained for outage fallback and expire after 30 inactive days.
 
 See the [DTSM request-flow guide](backend/src/calendars/dtsm-events/README.md)
 for the URL-to-cache-to-D1 walk, filter semantics, and effective SQL.

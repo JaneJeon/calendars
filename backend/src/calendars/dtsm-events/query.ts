@@ -1,21 +1,24 @@
 import {
+  dtsmDefaultVenueIds,
   dtsmEventFilterParams,
-  type DtsmEventFilterParam
+  dtsmEventScopeValues
 } from '@janejeon/calendars-shared'
 import { InvalidRequestError } from '@/errors.js'
 import type { EventFilter } from './repository.js'
 
-export const DEFAULT_DTSM_VENUE_IDS = [
-  1201, 1249, 1260, 1328, 3999, 1137
-] as const
+export const DEFAULT_DTSM_VENUE_IDS = [...dtsmDefaultVenueIds] as const
 export const CUSTOM_DTSM_CACHE_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
 const PARAMETER_ORDER = [
   dtsmEventFilterParams.venues,
   dtsmEventFilterParams.organizers,
   dtsmEventFilterParams.categories
-] satisfies DtsmEventFilterParam[]
-const PARAMETER_NAMES = new Set<string>(PARAMETER_ORDER)
+] as const
+type DtsmDimensionParam = (typeof PARAMETER_ORDER)[number]
+const PARAMETER_NAMES = new Set<string>([
+  dtsmEventFilterParams.scope,
+  ...PARAMETER_ORDER
+])
 
 export interface ParsedDtsmEventFilter {
   filter: EventFilter
@@ -28,7 +31,7 @@ function invalid(message: string): never {
 
 function parseIds(
   searchParams: URLSearchParams,
-  name: DtsmEventFilterParam
+  name: DtsmDimensionParam
 ): number[] | undefined {
   const values = searchParams.getAll(name)
   if (values.length === 0) return undefined
@@ -55,6 +58,20 @@ export function parseDtsmEventFilter(
     return {
       filter: { venueIds: [...DEFAULT_DTSM_VENUE_IDS] },
       canonicalQuery: ''
+    }
+  }
+
+  const scopes = searchParams.getAll(dtsmEventFilterParams.scope)
+  if (scopes.length > 1) invalid('scope may appear only once')
+  if (scopes.length === 1 && scopes[0] !== dtsmEventScopeValues.all)
+    invalid(`scope must be ${dtsmEventScopeValues.all}`)
+  const hasDimension = PARAMETER_ORDER.some(name => searchParams.has(name))
+  if (scopes.length === 1 && hasDimension)
+    invalid('scope may not be combined with entity filters')
+  if (scopes.length === 1) {
+    return {
+      filter: {},
+      canonicalQuery: `${dtsmEventFilterParams.scope}=${dtsmEventScopeValues.all}`
     }
   }
 

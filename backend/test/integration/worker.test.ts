@@ -21,11 +21,16 @@ function mockFetch(handler: typeof fetch): void {
 
 beforeEach(async () => {
   vi.restoreAllMocks()
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-09-11T19:00:00Z'))
   const dtsmCache = await env.CALENDAR_CACHE.list({
     prefix: 'dtsm-events.ics'
   })
+  const codexCache = await env.CALENDAR_CACHE.list({
+    prefix: 'codex-resets.ics'
+  })
   await Promise.all([
-    env.CALENDAR_CACHE.delete('codex-resets.ics'),
+    ...codexCache.keys.map(key => env.CALENDAR_CACHE.delete(key.name)),
     ...dtsmCache.keys.map(key => env.CALENDAR_CACHE.delete(key.name))
   ])
   await env.CALENDAR_DB.batch([
@@ -43,6 +48,69 @@ beforeEach(async () => {
 })
 
 describe('the Downtown San Mateo feed', () => {
+  it('discovers decoded filter options from the synchronized catalog', async () => {
+    mockFetch(async () => jsonResponse(dtsmFixture))
+    const response = await exports.default.fetch(
+      'http://example.com/dtsm-events/options.json'
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      'https://cal.janejeon.com'
+    )
+    expect(await response.json()).toEqual({
+      defaultVenueIds: [1201, 1249, 1260, 1328, 3999, 1137],
+      venues: [
+        { id: 9999, name: 'Elsewhere' },
+        { id: 1201, name: 'North B Street' },
+        { id: 1137, name: 'San Mateo Central Park' }
+      ],
+      organizers: [
+        { id: 700, name: 'Downtown San Mateo Association' },
+        { id: 701, name: 'Downtown San Mateo Association' }
+      ],
+      categories: [
+        { id: 81, name: 'Arts & Culture' },
+        { id: 80, name: 'Live Music' }
+      ]
+    })
+  })
+
+  it('returns 502 when initial option discovery has no source snapshot', async () => {
+    mockFetch(async () => jsonResponse({ events: [], total_pages: 1 }))
+    const response = await exports.default.fetch(
+      'http://example.com/dtsm-events/options.json'
+    )
+    expect(response.status).toBe(502)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('wraps an unavailable options database as an upstream failure', async () => {
+    await env.CALENDAR_DB.prepare(
+      "DELETE FROM dtsm_sync_state WHERE calendar = 'dtsm-events'"
+    ).run()
+    const response = await exports.default.fetch(
+      'http://example.com/dtsm-events/options.json'
+    )
+    expect(response.status).toBe(502)
+    await env.CALENDAR_DB.prepare(
+      "INSERT INTO dtsm_sync_state (calendar) VALUES ('dtsm-events')"
+    ).run()
+  })
+
+  it('serves the unrestricted catalog for scope=all', async () => {
+    mockFetch(async () => jsonResponse(dtsmFixture))
+    const response = await exports.default.fetch(
+      'http://example.com/dtsm-events.ics?scope=all'
+    )
+    const body = await response.text()
+    expect(response.status).toBe(200)
+    expect(body).toContain('Stored but not in the default feed')
+  })
+
   it('stores the full snapshot, filters the default feed in SQL, and renders LA wall time', async () => {
     mockFetch(async input => {
       const url = new URL(String(input))
@@ -273,6 +341,7 @@ describe('the Downtown San Mateo feed', () => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -483,6 +552,43 @@ describe('the feed', () => {
     expect(body.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
     expect(body).toContain('CATEGORIES:regular')
     expect(body).toContain('CATEGORIES:banked')
+  })
+
+  it('isolates canonical Codex type variants and filters their events', async () => {
+    mockFetch(async input => {
+      const url = String(input)
+      if (url.includes('/api/v1/resets')) return jsonResponse(resetsFixture)
+      if (url.includes('/api/v1/status'))
+        return jsonResponse(statusEmptyFixture)
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    const request = new Request(
+      'http://example.com/codex-resets.ics?types=banked'
+    )
+    const response = await exports.default.fetch(request)
+    const body = await response.text()
+    expect(response.status).toBe(200)
+    expect(body).toContain('CATEGORIES:banked')
+    expect(body).not.toContain('CATEGORIES:regular')
+
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockClear()
+    const cached = await exports.default.fetch(request)
+    expect(await cached.text()).toBe(body)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid Codex filters before calling upstream', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(resetsFixture))
+    mockFetch(fetchMock)
+    const response = await exports.default.fetch(
+      'http://example.com/codex-resets.ics?types=full'
+    )
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.text()).toContain('Invalid Codex reset filters')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('serves a history-only feed when /status fails', async () => {

@@ -13,6 +13,7 @@ import {
 import type { BatchItem } from 'drizzle-orm/batch'
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import type { AnySQLiteTable } from 'drizzle-orm/sqlite-core'
+import type { DtsmFilterOptionsResponse } from '@janejeon/calendars-shared'
 import {
   categories,
   eventCategories,
@@ -59,6 +60,11 @@ export interface EventFilter {
   organizerIds?: number[]
   categoryIds?: number[]
 }
+
+export type DtsmFilterOptions = Omit<
+  DtsmFilterOptionsResponse,
+  'defaultVenueIds'
+>
 
 interface SyncState {
   last_success_at: number | null
@@ -440,6 +446,42 @@ export async function readEvents(
     organizers: names(organizerRows, event.id),
     categoryNames: names(categoryRows, event.id)
   }))
+}
+
+export async function readFilterOptions(
+  db: D1Database
+): Promise<DtsmFilterOptions> {
+  const orm = drizzle(db)
+  const [venueRows, organizerRows, categoryRows] = await Promise.all([
+    orm
+      .selectDistinct({ id: venues.id, name: venues.name })
+      .from(venues)
+      .innerJoin(events, eq(events.venueId, venues.id))
+      .where(isNull(events.withdrawnAt))
+      .orderBy(sql`lower(${venues.name})`, asc(venues.id)),
+    orm
+      .selectDistinct({ id: organizers.id, name: organizers.name })
+      .from(organizers)
+      .innerJoin(
+        eventOrganizers,
+        eq(eventOrganizers.organizerId, organizers.id)
+      )
+      .innerJoin(events, eq(events.id, eventOrganizers.eventId))
+      .where(isNull(events.withdrawnAt))
+      .orderBy(sql`lower(${organizers.name})`, asc(organizers.id)),
+    orm
+      .selectDistinct({ id: categories.id, name: categories.name })
+      .from(categories)
+      .innerJoin(eventCategories, eq(eventCategories.categoryId, categories.id))
+      .innerJoin(events, eq(events.id, eventCategories.eventId))
+      .where(isNull(events.withdrawnAt))
+      .orderBy(sql`lower(${categories.name})`, asc(categories.id))
+  ])
+  return {
+    venues: venueRows,
+    organizers: organizerRows,
+    categories: categoryRows
+  }
 }
 
 export async function readOngoingStart(

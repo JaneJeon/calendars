@@ -75,6 +75,22 @@ describe.skipIf(!runE2E || !deployedUrl)('deployed feed', () => {
     ).toBeGreaterThanOrEqual(52)
   })
 
+  it('serves only regular events for the deployed regular-only URL', async () => {
+    const response = await fetch(
+      new URL('/codex-resets.ics?types=regular', deployedUrl!),
+      { headers: { 'User-Agent': 'calendars-smoke-test' } }
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=900')
+    const component = new ICAL.Component(ICAL.parse(await response.text()))
+    const events = component.getAllSubcomponents('vevent')
+    expect(events.length).toBeGreaterThan(0)
+    for (const event of events)
+      expect(event.getFirstProperty('categories')?.getValues()).toEqual([
+        'regular'
+      ])
+  })
+
   it('serves the deployed DTSM feed', async () => {
     const response = await fetch(new URL('/dtsm-events.ics', deployedUrl!), {
       headers: { 'User-Agent': 'calendars-smoke-test' }
@@ -93,5 +109,21 @@ describe.skipIf(!runE2E || !deployedUrl)('deployed feed', () => {
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600')
     const component = new ICAL.Component(ICAL.parse(await response.text()))
     expect(component.getAllSubcomponents('vevent')).toHaveLength(0)
+  })
+
+  it('serves DTSM filter discovery from the deployed URL', async () => {
+    const response = await fetch(
+      new URL('/dtsm-events/options.json', deployedUrl!),
+      { headers: { 'User-Agent': 'calendars-smoke-test' } }
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('application/json')
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    await expect(response.json()).resolves.toMatchObject({
+      defaultVenueIds: expect.any(Array),
+      venues: expect.any(Array),
+      organizers: expect.any(Array),
+      categories: expect.any(Array)
+    })
   })
 })
