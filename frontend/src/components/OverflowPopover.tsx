@@ -36,7 +36,7 @@ export function OverflowPopover(props: {
   const restoreFocus = (element: HTMLElement | null, target: string) => {
     if (!element || focusTarget !== target) return
     requestAnimationFrame(() => {
-      if (element.isConnected) element.focus()
+      element.focus()
       setFocusTarget(null)
     })
   }
