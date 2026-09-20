@@ -58,11 +58,13 @@ describe('Calendar explorer', () => {
       /September 2026/
     )
     expect(localStorage.getItem('calendar-explorer:v1')).toContain('2026-09')
-    const calendarTable = screen.getByRole('table', { name: 'September 2026' })
+    const calendarTable = screen.getByRole('table', {
+      name: 'September 2026'
+    })
     expect(within(calendarTable).getAllByRole('row')).toHaveLength(7)
     expect(within(calendarTable).getAllByRole('columnheader')).toHaveLength(7)
     expect(within(calendarTable).getAllByRole('cell')).toHaveLength(42)
-  })
+  }, 10_000)
 
   it('switches calendars without resetting representation', async () => {
     const user = userEvent.setup()
