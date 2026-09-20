@@ -5,120 +5,25 @@ import {
   Collapsible,
   Flex,
   HStack,
-  Menu,
-  Portal,
   Spinner,
   Text
 } from '@chakra-ui/react'
-import { Check, ChevronDown, Filter } from 'lucide-react'
+import { Filter } from 'lucide-react'
 import {
   codexResetTypes,
   type CodexResetType,
-  type DtsmFilterOption,
   type DtsmFilterOptionsResponse
 } from '@janejeon/calendars-shared'
 import type { FeedId } from '../calendar'
 import { resetLabels } from '../content'
-import {
-  selectionSummary,
-  sortFilterOptions,
-  toggleId,
-  type ExplorerState,
-  type IdSelection
-} from '../filters'
-import {
-  controlProps,
-  focusRing,
-  menuContentProps,
-  menuItemProps
-} from '../theme'
+import type { ExplorerState, IdSelection } from '../filters'
+import { controlProps, focusRing } from '../theme'
+import { FilterPopover } from './FilterPopover'
+import { PlaceFilterPopover } from './PlaceFilterPopover'
 
 export type DtsmFilterKey = 'venueIds' | 'organizerIds' | 'categoryIds'
 
-function EntityFilterMenu(props: {
-  label: string
-  noun: string
-  selection: IdSelection
-  options: DtsmFilterOption[]
-  defaultIds?: readonly number[]
-  onChange: (selection: IdSelection) => void
-}) {
-  const orderedOptions = sortFilterOptions(props.options)
-  const allIds = orderedOptions.map(option => option.id)
-  const summary = selectionSummary(
-    props.selection,
-    props.options,
-    props.noun,
-    props.defaultIds
-  )
-  return (
-    <Menu.Root
-      closeOnSelect={false}
-      positioning={{ placement: 'bottom-start' }}
-    >
-      <Menu.Trigger asChild>
-        <Button
-          {...controlProps}
-          minW={{ base: '0', md: '190px' }}
-          w={{ base: '100%', md: 'auto' }}
-          justifyContent="space-between"
-          aria-label={`${props.label}: ${summary}`}
-        >
-          <Text truncate>{summary}</Text>
-          <ChevronDown size={15} color="#AEBAC8" aria-hidden="true" />
-        </Button>
-      </Menu.Trigger>
-      <Portal>
-        <Menu.Positioner>
-          <Menu.Content
-            {...menuContentProps}
-            minW="260px"
-            maxW="min(390px, calc(100vw - 28px))"
-            maxH="min(430px, var(--available-height))"
-            overflowY="auto"
-          >
-            <Menu.CheckboxItem
-              value="all"
-              checked={props.selection === null}
-              onCheckedChange={checked => props.onChange(checked ? null : [])}
-              {...menuItemProps}
-            >
-              <Text flex="1">All {props.noun}</Text>
-              <Menu.ItemIndicator color="calendar.focus">
-                <Check size={15} />
-              </Menu.ItemIndicator>
-            </Menu.CheckboxItem>
-            <Menu.Separator borderColor="calendar.border" />
-            {orderedOptions.map(option => (
-              <Menu.CheckboxItem
-                key={option.id}
-                value={String(option.id)}
-                valueText={option.name}
-                checked={
-                  props.selection === null ||
-                  props.selection.includes(option.id)
-                }
-                onCheckedChange={checked =>
-                  props.onChange(
-                    toggleId(props.selection, option.id, checked, allIds)
-                  )
-                }
-                {...menuItemProps}
-              >
-                <Text flex="1">{option.name}</Text>
-                <Menu.ItemIndicator color="calendar.focus">
-                  <Check size={15} />
-                </Menu.ItemIndicator>
-              </Menu.CheckboxItem>
-            ))}
-          </Menu.Content>
-        </Menu.Positioner>
-      </Portal>
-    </Menu.Root>
-  )
-}
-
-function FilterCheckbox(props: {
+function ResetCheckbox(props: {
   checked: boolean
   label: string
   onChange: (checked: boolean) => void
@@ -147,6 +52,69 @@ function FilterCheckbox(props: {
   )
 }
 
+function DtsmFilterControls(props: {
+  filters: ExplorerState['filters']['dtsm']
+  options: DtsmFilterOptionsResponse
+  onChange: (key: DtsmFilterKey, value: IdSelection) => void
+}) {
+  const model = props.options.filterModel!
+  return (
+    <>
+      <Flex
+        align={{ base: 'stretch', md: 'center' }}
+        direction={{ base: 'column', md: 'row' }}
+        gap="8px"
+      >
+        <Text color="calendar.subtle" fontSize="12px" fontWeight="500">
+          Places
+        </Text>
+        <PlaceFilterPopover
+          selection={props.filters.venueIds}
+          model={model}
+          rawOptions={props.options.venues}
+          defaultIds={props.options.defaultVenueIds}
+          onChange={value => props.onChange('venueIds', value)}
+        />
+      </Flex>
+      <Flex
+        align={{ base: 'stretch', md: 'center' }}
+        direction={{ base: 'column', md: 'row' }}
+        gap="8px"
+      >
+        <Text color="calendar.subtle" fontSize="12px" fontWeight="500">
+          Type
+        </Text>
+        <FilterPopover
+          label="Type"
+          noun="types"
+          selection={props.filters.categoryIds}
+          choices={model.eventTypes}
+          rawOptions={props.options.categories}
+          onChange={value => props.onChange('categoryIds', value)}
+        />
+      </Flex>
+      <Flex
+        align={{ base: 'stretch', md: 'center' }}
+        direction={{ base: 'column', md: 'row' }}
+        gap="8px"
+      >
+        <Text color="calendar.subtle" fontSize="12px" fontWeight="500">
+          Organizer
+        </Text>
+        <FilterPopover
+          label="Organizer"
+          noun="organizers"
+          searchable
+          selection={props.filters.organizerIds}
+          choices={model.organizers}
+          rawOptions={props.options.organizers}
+          onChange={value => props.onChange('organizerIds', value)}
+        />
+      </Flex>
+    </>
+  )
+}
+
 function FilterControls(props: {
   feed: FeedId
   filters: ExplorerState['filters']
@@ -168,7 +136,7 @@ function FilterControls(props: {
         </Text>
         <Flex wrap="wrap" gap="8px">
           {codexResetTypes.map(type => (
-            <FilterCheckbox
+            <ResetCheckbox
               key={type}
               checked={props.filters.codex.types.includes(type)}
               label={resetLabels[type]}
@@ -187,57 +155,11 @@ function FilterControls(props: {
       w="100%"
     >
       {props.options ? (
-        <>
-          {(
-            [
-              [
-                'Places',
-                'places',
-                'venueIds',
-                props.filters.dtsm.venueIds,
-                props.options.venues,
-                true
-              ],
-              [
-                'Type',
-                'types',
-                'categoryIds',
-                props.filters.dtsm.categoryIds,
-                props.options.categories,
-                false
-              ],
-              [
-                'Host',
-                'hosts',
-                'organizerIds',
-                props.filters.dtsm.organizerIds,
-                props.options.organizers,
-                false
-              ]
-            ] as const
-          ).map(([label, noun, key, selection, values, isDefaultPlaces]) => (
-            <Flex
-              key={key}
-              align={{ base: 'stretch', md: 'center' }}
-              direction={{ base: 'column', md: 'row' }}
-              gap="8px"
-            >
-              <Text color="calendar.subtle" fontSize="12px" fontWeight="500">
-                {label}
-              </Text>
-              <EntityFilterMenu
-                label={label}
-                noun={noun}
-                selection={selection}
-                options={values}
-                defaultIds={
-                  isDefaultPlaces ? props.options?.defaultVenueIds : undefined
-                }
-                onChange={value => props.onDtsmChange(key, value)}
-              />
-            </Flex>
-          ))}
-        </>
+        <DtsmFilterControls
+          filters={props.filters.dtsm}
+          options={props.options}
+          onChange={props.onDtsmChange}
+        />
       ) : props.optionsPending ? (
         <HStack color="calendar.muted">
           <Spinner size="xs" /> <Text fontSize="13px">Loading filters…</Text>

@@ -15,3 +15,7 @@ parser, state model, and components and is compiled out of the production build.
   alphabetical ordering and collision handling.
 
 These are implementation evidence, not Figma exports or design mockups.
+
+The follow-up [DTSM filter hotfix evidence](../dtsm-filter-hotfix/README.md)
+supersedes this folder for filter taxonomy, checkbox geometry, and open-panel
+interaction review.

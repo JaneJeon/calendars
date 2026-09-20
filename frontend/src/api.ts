@@ -1,5 +1,7 @@
 import {
+  buildDtsmFilterModel,
   calendarApiPaths,
+  type DtsmFilterModel,
   type DtsmFilterOptionsResponse
 } from '@janejeon/calendars-shared'
 import { parseCalendar, type CalendarEvent, type FeedId } from './calendar'
@@ -51,7 +53,43 @@ function isOptionList(value: unknown): boolean {
   )
 }
 
-function parseDtsmOptions(value: unknown): DtsmFilterOptionsResponse {
+function isIdList(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every(isPositiveId)
+}
+
+function isSemanticChoice(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.key === 'string' &&
+    typeof value.name === 'string' &&
+    isIdList(value.ids)
+  )
+}
+
+function isFilterModel(value: unknown): value is DtsmFilterModel {
+  return (
+    isRecord(value) &&
+    value.version === 1 &&
+    Array.isArray(value.placeGroups) &&
+    value.placeGroups.every(
+      group =>
+        isSemanticChoice(group) &&
+        isRecord(group) &&
+        isOptionList(group.children)
+    ) &&
+    isOptionList(value.places) &&
+    Array.isArray(value.eventTypes) &&
+    value.eventTypes.every(isSemanticChoice) &&
+    Array.isArray(value.organizers) &&
+    value.organizers.every(isSemanticChoice)
+  )
+}
+
+export type ResolvedDtsmFilterOptionsResponse = DtsmFilterOptionsResponse & {
+  filterModel: DtsmFilterModel
+}
+
+function parseDtsmOptions(value: unknown): ResolvedDtsmFilterOptionsResponse {
   if (
     !isRecord(value) ||
     !Array.isArray(value.defaultVenueIds) ||
@@ -63,13 +101,28 @@ function parseDtsmOptions(value: unknown): DtsmFilterOptionsResponse {
     throw new CalendarRequestError(
       'Calendar service returned invalid filter options'
     )
-  return value as unknown as DtsmFilterOptionsResponse
+  const response = value as unknown as DtsmFilterOptionsResponse
+  const suppliedModel = response.filterModel
+  if (
+    isRecord(suppliedModel) &&
+    suppliedModel.version === 1 &&
+    !isFilterModel(suppliedModel)
+  )
+    throw new CalendarRequestError(
+      'Calendar service returned invalid filter options'
+    )
+  return {
+    ...response,
+    filterModel: isFilterModel(suppliedModel)
+      ? suppliedModel
+      : buildDtsmFilterModel(response)
+  }
 }
 
 export async function fetchDtsmOptions(
   signal?: AbortSignal,
   request: typeof fetch = fetch
-): Promise<DtsmFilterOptionsResponse> {
+): Promise<ResolvedDtsmFilterOptionsResponse> {
   /* istanbul ignore else -- Vite removes this entire fixture branch in production. */
   if (import.meta.env.DEV) {
     const scenario = new URLSearchParams(window.location.search).get(
@@ -82,7 +135,7 @@ export async function fetchDtsmOptions(
       const fixtures = (await import(
         /* @vite-ignore */ moduleUrl
       )) as typeof import('./visual-fixtures')
-      return fixtures.visualOptions
+      return parseDtsmOptions(fixtures.visualOptions)
     }
   }
 

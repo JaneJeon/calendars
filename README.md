@@ -34,8 +34,8 @@ responses are cached at Cloudflare's edge and retained in Workers KV for
 outage fallback.
 
 The Downtown San Mateo feed takes one open-ended, paginated daily snapshot of
-all events exposed by the DSMA API and stores explicit useful fields in
-normalized D1 tables. The default feed selects the configured B Street and
+all events exposed by the DSMA API and stores source-faithful entities and
+relationships in normalized D1 tables. The default feed selects the configured B Street and
 Central Park venue IDs at read time; images are discarded. Filtered URLs query
 the same catalog without re-scraping. Ended events are retained and never
 fetched again. Upstream date-time strings are interpreted as
@@ -60,8 +60,12 @@ entity filter. The explorer discovers available entities from:
 https://cal.janejeon.dev/dtsm-events/options.json
 ```
 
-That response contains the default venue IDs plus every venue, organizer, and
-category referenced by a non-withdrawn stored event.
+That response retains the raw venues, organizers, and categories referenced by
+non-withdrawn events for compatibility and adds a versioned semantic
+`filterModel` for the explorer. The model groups the five configured B Street
+venue IDs, collapses duplicate organizer names, combines Event/Events and
+Promotion/Promotions, and treats yearly Head West categories as series tags.
+Unknown future categories remain visible as standalone event types.
 
 Each DTSM response is cached for one hour, while the shared D1 catalog refreshes
 from DSMA at most once per day. The default KV fallback is retained

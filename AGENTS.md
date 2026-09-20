@@ -88,6 +88,17 @@ referenced by at least one non-withdrawn event, with a one-hour public cache;
 it reruns the same catalog-current check but has no KV response fallback.
 Source `image` objects are never normalized or persisted.
 
+D1 normalization is relational, not a claim that the upstream vocabulary is a
+good user-facing taxonomy. Raw source IDs, names, slugs, and relationships stay
+faithful in D1. The options response retains those raw arrays and adds
+`filterModel.version = 1` as the semantic projection used by the explorer. It
+groups the five configured B Street IDs, keeps Central Park separate, folds
+case-insensitive duplicate organizers into one choice, combines Event/Events
+and Promotion/Promotions, and excludes `Head West <year>` series tags from the
+type filter. Any other future category is exposed as its own type. The
+resulting choice still serializes to its sorted raw IDs, so feed query semantics
+remain backward compatible.
+
 DSMA `start_date` and `end_date` are authoritative
 `America/Los_Angeles` wall times. Ignore the API's inconsistent timezone and
 UTC fields. Timed events are converted from LA wall time to UTC with DST for

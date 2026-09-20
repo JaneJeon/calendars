@@ -42,10 +42,36 @@ export default function App() {
   const [state, setState] = useState<ExplorerState>(() => {
     /* istanbul ignore if -- localStorage is present in every supported browser. */
     if (typeof localStorage === 'undefined') return defaultExplorerState(false)
-    return readExplorerState(localStorage, mediaMatches('(max-width: 700px)'))
+    const restored = readExplorerState(
+      localStorage,
+      mediaMatches('(max-width: 700px)')
+    )
+    /* istanbul ignore next -- Vite removes this visual-QA branch in production. */
+    if (
+      import.meta.env.DEV &&
+      new URLSearchParams(window.location.search).get('__selection') ===
+        'partial-b-street'
+    )
+      return {
+        ...restored,
+        filters: {
+          ...restored.filters,
+          dtsm: {
+            ...restored.filters.dtsm,
+            venueIds: [1249, 1260, 1328, 3999, 1137]
+          }
+        }
+      }
+    return restored
   })
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    /* istanbul ignore next -- Vite removes this visual-QA branch in production. */
+    return (
+      import.meta.env.DEV &&
+      new URLSearchParams(window.location.search).has('__panel')
+    )
+  })
   const [status, setStatus] = useState('')
   const [focusDay, setFocusDay] = useState<string | null>(null)
 

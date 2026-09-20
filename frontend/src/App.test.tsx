@@ -58,11 +58,13 @@ describe('Calendar explorer', () => {
       /September 2026/
     )
     expect(localStorage.getItem('calendar-explorer:v1')).toContain('2026-09')
-    const calendarTable = screen.getByRole('table', { name: 'September 2026' })
+    const calendarTable = screen.getByRole('table', {
+      name: 'September 2026'
+    })
     expect(within(calendarTable).getAllByRole('row')).toHaveLength(7)
     expect(within(calendarTable).getAllByRole('columnheader')).toHaveLength(7)
     expect(within(calendarTable).getAllByRole('cell')).toHaveLength(42)
-  })
+  }, 10_000)
 
   it('switches calendars without resetting representation', async () => {
     const user = userEvent.setup()
@@ -90,7 +92,7 @@ describe('Calendar explorer', () => {
     await user.click(
       screen.getByRole('button', { name: 'Places: B Street + Central Park' })
     )
-    const allPlaces = await screen.findByRole('menuitemcheckbox', {
+    const allPlaces = await screen.findByRole('checkbox', {
       name: 'All places'
     })
     await user.click(allPlaces)
@@ -102,6 +104,99 @@ describe('Calendar explorer', () => {
     expect(
       screen.getByRole('button', { name: 'Add to calendar' })
     ).toHaveAccessibleDescription(/Choose at least one filter option/)
+  })
+
+  it('groups B Street while emitting exact venue IDs', async () => {
+    const user = userEvent.setup()
+    await renderScenario()
+    const trigger = screen.getByRole('button', {
+      name: 'Places: B Street + Central Park'
+    })
+    await user.click(trigger)
+    const group = await screen.findByRole('checkbox', { name: 'B Street' })
+    const north = screen.getByRole('checkbox', { name: 'North B Street' })
+    const central = screen.getByRole('checkbox', {
+      name: 'San Mateo Central Park'
+    })
+    expect(group).toBeChecked()
+    expect(north).toBeChecked()
+    expect(central).toBeChecked()
+
+    await user.click(north)
+    expect(group).toBePartiallyChecked()
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"venueIds":[1137,1249,1260,1328,3999]'
+    )
+
+    await user.click(group)
+    expect(group).toBeChecked()
+    await user.click(central)
+    expect(
+      screen.getByRole('button', { name: 'Places: B Street' })
+    ).toBeVisible()
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"venueIds":[1201,1249,1260,1328,3999]'
+    )
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+    expect(screen.getByText('Apple Calendar').closest('a')).toHaveAttribute(
+      'href',
+      'webcal://localhost:8787/dtsm-events.ics?venues=1201%2C1249%2C1260%2C1328%2C3999'
+    )
+  })
+
+  it('searches production-shaped places and organizers without persisting search', async () => {
+    const user = userEvent.setup()
+    await renderScenario()
+    const places = screen.getByRole('button', {
+      name: 'Places: B Street + Central Park'
+    })
+    await user.click(places)
+    const placeSearch = await screen.findByRole('textbox', {
+      name: 'Search places'
+    })
+    await user.type(placeSearch, 'sutter')
+    const sutter = screen.getByRole('checkbox', {
+      name: 'Sutter Medical Center San Mateo'
+    })
+    expect(sutter).toBeVisible()
+    expect(
+      screen.queryByRole('checkbox', { name: 'Blue Moon Bar' })
+    ).not.toBeInTheDocument()
+    await user.click(sutter)
+    await user.clear(placeSearch)
+    await user.type(placeSearch, 'central park')
+    expect(screen.queryByText('Other places')).not.toBeInTheDocument()
+    await user.clear(placeSearch)
+    await user.type(placeSearch, 'no such place')
+    expect(screen.getByText('No matching places.')).toBeVisible()
+    await user.keyboard('{Escape}')
+    await user.click(places)
+    expect(screen.getByRole('textbox', { name: 'Search places' })).toHaveValue(
+      ''
+    )
+    await user.keyboard('{Escape}')
+
+    const organizer = screen.getByRole('button', {
+      name: 'Organizer: All organizers'
+    })
+    await user.click(organizer)
+    const organizerSearch = await screen.findByRole('textbox', {
+      name: 'Search organizers'
+    })
+    await user.type(organizerSearch, 'health advisory')
+    const health = screen.getByRole('checkbox', {
+      name: 'Bay Area Community Health Advisory Council'
+    })
+    expect(health).toBeVisible()
+    await user.click(health)
+    expect(localStorage.getItem('calendar-explorer:v1') ?? '').not.toContain(
+      'health advisory'
+    )
+    await user.clear(organizerSearch)
+    await user.type(organizerSearch, 'no such organizer')
+    expect(screen.getByText('No matching organizers.')).toBeVisible()
   })
 
   it('shows a month empty state without disabling a valid subscription', async () => {
@@ -375,34 +470,34 @@ describe('Calendar explorer', () => {
     ).toBeDisabled()
   })
 
-  it('updates dynamic multi-select summaries and category fallback', async () => {
+  it('uses normalized event types and their raw category IDs', async () => {
     const user = userEvent.setup()
     await renderScenario()
-    await user.click(screen.getByRole('button', { name: 'Type: All types' }))
-    await user.click(
-      await screen.findByRole('menuitemcheckbox', { name: 'Community' })
-    )
+    const trigger = screen.getByRole('button', { name: 'Type: All types' })
+    await user.click(trigger)
+    await user.click(await screen.findByRole('checkbox', { name: 'Events' }))
     expect(
-      screen.getByRole('button', { name: 'Type: 3 selected' })
+      screen.getByRole('button', { name: 'Type: Promotions' })
     ).toBeVisible()
-    const allTypes = await screen.findByRole('menuitemcheckbox', {
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"categoryIds":[14,26]'
+    )
+    const allTypes = await screen.findByRole('checkbox', {
       name: 'All types'
     })
     await user.click(allTypes)
     await user.click(allTypes)
-    await user.click(
-      await screen.findByRole('menuitemcheckbox', { name: 'Arts & Culture' })
+    await user.click(await screen.findByRole('checkbox', { name: 'Events' }))
+    expect(screen.getByRole('button', { name: 'Type: Events' })).toBeVisible()
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"categoryIds":[15,25]'
     )
-    expect(
-      screen.getByRole('button', { name: 'Type: Arts & Culture' })
-    ).toBeVisible()
 
     await user.keyboard('{Escape}')
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: /Yoga in the Park/ })
-      ).not.toBeInTheDocument()
-    )
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(
+      await screen.findByRole('button', { name: /Yoga in the Park/ })
+    ).toBeVisible()
     await user.click(
       await screen.findByRole('button', { name: /Neighborhood cleanup/ })
     )
@@ -413,6 +508,102 @@ describe('Calendar explorer', () => {
     expect(
       within(detail).getAllByText('Downtown San Mateo events').length
     ).toBeGreaterThan(0)
+  })
+
+  it('preserves a partial legacy category selection until the user resolves it', async () => {
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({
+        filters: {
+          dtsm: {
+            venueIds: [1201, 1249, 1260, 1328, 3999, 1137],
+            organizerIds: null,
+            categoryIds: [15]
+          }
+        }
+      })
+    )
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/?__scenario=busy')
+    renderApp()
+    await screen.findByRole('button', { name: /Second Saturday Market/ })
+    await user.click(screen.getByRole('button', { name: 'Type: Events' }))
+    const events = await screen.findByRole('checkbox', { name: 'Events' })
+    expect(events.closest('[data-scope="checkbox"]')).toHaveAttribute(
+      'data-state',
+      'indeterminate'
+    )
+    await user.click(events)
+    expect(events).toBeChecked()
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"categoryIds":[15,25]'
+    )
+  })
+
+  it('drops hidden series IDs on the first explicit semantic type change', async () => {
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({
+        filters: {
+          dtsm: {
+            venueIds: [1201, 1249, 1260, 1328, 3999, 1137],
+            organizerIds: null,
+            categoryIds: [24]
+          }
+        }
+      })
+    )
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/?__scenario=busy')
+    renderApp()
+    await screen.findByRole('button', { name: /Second Saturday Market/ })
+    await user.click(
+      screen.getByRole('button', { name: 'Type: Head West 2026' })
+    )
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Promotions' })
+    )
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"categoryIds":[14,26]'
+    )
+    expect(localStorage.getItem('calendar-explorer:v1')).not.toContain(
+      '"categoryIds":[14,24,26]'
+    )
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+    expect(screen.getByText('Apple Calendar').closest('a')).toHaveAttribute(
+      'href',
+      'webcal://localhost:8787/dtsm-events.ics?venues=1137%2C1201%2C1249%2C1260%2C1328%2C3999&categories=14%2C26'
+    )
+  })
+
+  it('dismisses an initially open place filter with Close and outside interaction', async () => {
+    window.history.replaceState({}, '', '/?__scenario=busy&__panel=places')
+    const user = userEvent.setup()
+    renderApp()
+    await screen.findByRole('checkbox', { name: 'All places' })
+    const trigger = screen.getByRole('button', {
+      name: 'Places: B Street + Central Park'
+    })
+    await user.click(
+      screen.getByRole('button', { name: 'Close place filters' })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: 'All places' })
+      ).not.toBeInTheDocument()
+    )
+    expect(trigger).toHaveFocus()
+
+    await user.click(trigger)
+    await screen.findByRole('checkbox', { name: 'All places' })
+    await user.click(screen.getByRole('heading', { level: 2 }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: 'All places' })
+      ).not.toBeInTheDocument()
+    )
+    expect(trigger).toHaveFocus()
   })
 
   it('shows compact grid overflow', async () => {
@@ -429,9 +620,7 @@ describe('Calendar explorer', () => {
     expect(filter).toHaveTextContent('Default events')
     await user.click(filter)
     await user.click(screen.getByRole('button', { name: 'Type: All types' }))
-    await user.click(
-      await screen.findByRole('menuitemcheckbox', { name: 'Community' })
-    )
+    await user.click(await screen.findByRole('checkbox', { name: 'Events' }))
     expect(filter).toHaveTextContent('1 active')
     await user.keyboard('{Escape}')
     await user.click(

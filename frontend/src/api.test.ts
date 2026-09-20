@@ -43,7 +43,19 @@ describe('calendar API client', () => {
         })
       )
       .mockResolvedValueOnce(new Response(calendar))
-    expect(await fetchDtsmOptions(undefined, request)).toEqual(options)
+    expect(await fetchDtsmOptions(undefined, request)).toMatchObject({
+      ...options,
+      filterModel: {
+        version: 1,
+        placeGroups: [
+          expect.objectContaining({
+            name: 'B Street',
+            ids: [1201, 1249, 1260, 1328, 3999]
+          })
+        ],
+        places: [{ id: 1137, name: 'San Mateo Central Park' }]
+      }
+    })
     expect(
       (
         await fetchCalendar(
@@ -92,6 +104,34 @@ describe('calendar API client', () => {
     await expect(fetchDtsmOptions(undefined, invalidOptions)).rejects.toThrow(
       'invalid filter options'
     )
+    const invalidModel = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          defaultVenueIds: [1201],
+          venues: [],
+          organizers: [],
+          categories: [],
+          filterModel: { version: 1 }
+        })
+      )
+    )
+    await expect(fetchDtsmOptions(undefined, invalidModel)).rejects.toThrow(
+      'invalid filter options'
+    )
+    const futureModel = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          defaultVenueIds: [1201],
+          venues: [{ id: 1201, name: 'North B Street' }],
+          organizers: [],
+          categories: [],
+          filterModel: { version: 2, future: true }
+        })
+      )
+    )
+    await expect(
+      fetchDtsmOptions(undefined, futureModel)
+    ).resolves.toMatchObject({ filterModel: { version: 1 } })
 
     const html = vi
       .fn<typeof fetch>()
@@ -113,7 +153,7 @@ describe('calendar API client', () => {
     ).toBeGreaterThan(3)
     expect(
       await fetchCalendar(
-        'http://localhost:8787/dtsm-events.ics?venues=7777',
+        'http://localhost:8787/dtsm-events.ics?venues=6441',
         'dtsm',
         undefined,
         request
@@ -131,12 +171,12 @@ describe('calendar API client', () => {
     window.history.replaceState({}, '', '/?__scenario=busy')
     expect(
       await fetchCalendar(
-        'http://localhost:8787/dtsm-events.ics?organizers=700&categories=80',
+        'http://localhost:8787/dtsm-events.ics?organizers=3229&categories=24',
         'dtsm',
         undefined,
         request
       )
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     expect(
       await fetchCalendar(
         'http://localhost:8787/dtsm-events.ics?scope=all',

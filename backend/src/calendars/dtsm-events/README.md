@@ -84,6 +84,21 @@ independent one-hour public response cache and the same stored-data fallback
 policy for source refreshes as the feed. It has no serialized KV fallback of its
 own, so D1/application failures return a logged 500.
 
+The raw arrays preserve source IDs and names for compatibility. A versioned
+`filterModel` projects them into product concepts without rewriting D1:
+
+- `B Street` controls venue IDs `1201`, `1249`, `1260`, `1328`, and `3999`;
+- Central Park (`1137`) remains a separate pinned place;
+- organizer records with the same decoded, trimmed, case-insensitive name share
+  one choice whose `ids` contains every source record;
+- Event/Event(s) and Promotion(s) become `Events` and `Promotions` choices;
+- `Head West <year>` is retained as event metadata but omitted as a peer type;
+- every other future category appears automatically as its own type.
+
+The semantic choices expand back into sorted raw IDs in feed URLs. Existing
+`venues`, `organizers`, and `categories` query behavior is unchanged, and no D1
+migration is involved.
+
 ## Parsing and cache identity
 
 [`query.ts`](query.ts) owns the public query interpretation. It trims values,

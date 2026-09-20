@@ -112,4 +112,25 @@ describe('DTSM event conversion', () => {
     const [event] = buildEvents([{ ...timed, modifiedUtc: null }])
     expect(event!.timestamp).toBe(Date.parse('2026-08-01T17:00:00Z'))
   })
+
+  it('uses semantic category labels and deduplicates organizer names', () => {
+    const [event] = buildEvents([
+      {
+        ...timed,
+        organizers: [
+          'Downtown San Mateo Association',
+          ' downtown san mateo association '
+        ],
+        categoryNames: ['Event', 'Events', 'Head West 2026', 'Workshops']
+      }
+    ])
+
+    expect(event!.categories).toEqual(['Events', 'Head West 2026', 'Workshops'])
+    expect(event!.description).toContain(
+      'Organizers: Downtown San Mateo Association'
+    )
+    expect(event!.description).not.toContain(
+      'Downtown San Mateo Association, downtown san mateo association'
+    )
+  })
 })

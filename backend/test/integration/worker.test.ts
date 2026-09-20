@@ -76,7 +76,43 @@ describe('the Downtown San Mateo feed', () => {
       categories: [
         { id: 81, name: 'Arts & Culture' },
         { id: 80, name: 'Live Music' }
-      ]
+      ],
+      filterModel: {
+        version: 1,
+        placeGroups: [
+          {
+            key: 'place-group:b-street',
+            name: 'B Street',
+            ids: [1201, 1249, 1260, 1328, 3999],
+            children: [
+              { id: 1201, name: 'North B Street' },
+              { id: 1249, name: 'South B Street' },
+              { id: 1260, name: 'B Street between 1st and 2nd avenues' },
+              { id: 1328, name: 'B Street between 2nd and 3rd avenues' },
+              { id: 3999, name: 'B Street between 1st and 3rd avenues' }
+            ]
+          }
+        ],
+        places: [
+          { id: 1137, name: 'San Mateo Central Park' },
+          { id: 9999, name: 'Elsewhere' }
+        ],
+        eventTypes: [
+          {
+            key: 'event-type:arts & culture',
+            name: 'Arts & Culture',
+            ids: [81]
+          },
+          { key: 'event-type:live music', name: 'Live Music', ids: [80] }
+        ],
+        organizers: [
+          {
+            key: 'organizer:downtown san mateo association',
+            name: 'Downtown San Mateo Association',
+            ids: [700, 701]
+          }
+        ]
+      }
     })
   })
 

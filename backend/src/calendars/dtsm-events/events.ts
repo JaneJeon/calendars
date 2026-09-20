@@ -5,6 +5,10 @@ import { convert } from 'html-to-text'
 import { isValidURL } from 'ics'
 import type { CalendarEvent } from '@/lib/ics.js'
 import type { StoredEvent } from './repository.js'
+import {
+  normalizeDtsmCategoryNames,
+  normalizeDtsmOrganizerNames
+} from '@janejeon/calendars-shared'
 
 const DOMAIN = 'cal.janejeon.dev'
 const TIME_ZONE = 'America/Los_Angeles'
@@ -46,16 +50,16 @@ function validUrl(value: string | null): string | undefined {
   return value && isValidURL(value) ? value : undefined
 }
 
-function description(event: StoredEvent): string | undefined {
+function description(
+  event: StoredEvent,
+  organizerNames: string[],
+  categoryNames: string[]
+): string | undefined {
   const sections = [htmlToText(event.descriptionHtml)]
-  if (event.organizers.length > 0)
-    sections.push(
-      `Organizers: ${event.organizers.map(decodeEntities).join(', ')}`
-    )
-  if (event.categoryNames.length > 0)
-    sections.push(
-      `Categories: ${event.categoryNames.map(decodeEntities).join(', ')}`
-    )
+  if (organizerNames.length > 0)
+    sections.push(`Organizers: ${organizerNames.join(', ')}`)
+  if (categoryNames.length > 0)
+    sections.push(`Categories: ${categoryNames.join(', ')}`)
   if (event.website) sections.push(`Website: ${event.website}`)
   const result = sections.filter(Boolean).join('\n\n')
   return result || undefined
@@ -84,12 +88,18 @@ function sourceStamp(value: string | null): number | undefined {
 export function buildEvents(events: StoredEvent[]): CalendarEvent[] {
   return events.map(event => {
     const stamp = sourceStamp(event.modifiedUtc ?? event.createdUtc)
+    const organizerNames = normalizeDtsmOrganizerNames(
+      event.organizers.map(decodeEntities)
+    )
+    const categoryNames = normalizeDtsmCategoryNames(
+      event.categoryNames.map(decodeEntities)
+    )
     const common = {
       uid: `${event.id}@${DOMAIN}`,
       title: decodeEntities(event.title),
-      description: description(event),
+      description: description(event, organizerNames, categoryNames),
       location: location(event),
-      categories: event.categoryNames.map(decodeEntities),
+      categories: categoryNames,
       url: validUrl(event.url),
       htmlContent: event.descriptionHtml || undefined,
       ...(stamp === undefined ? {} : { timestamp: stamp, lastModified: stamp }),
