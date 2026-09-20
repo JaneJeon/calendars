@@ -21,7 +21,12 @@ import {
 } from 'lucide-react'
 import type { FeedId } from '../calendar'
 import { feedOrder, feeds } from '../content'
-import { focusRing, menuContentProps, menuItemProps } from '../theme'
+import {
+  focusRing,
+  menuContentProps,
+  menuItemProps,
+  menuOptionItemProps
+} from '../theme'
 
 function CalendarMenu(props: {
   feed: FeedId
@@ -69,16 +74,18 @@ function CalendarMenu(props: {
                 <Menu.RadioItem
                   key={id}
                   value={id}
-                  {...menuItemProps}
+                  {...menuOptionItemProps}
                   py="10px"
                   _checked={{ bg: 'action.subtle', color: '#E8F0FF' }}
                 >
-                  <Box flex="1" minW="0">
-                    <Text fontWeight="500">{feeds[id].name}</Text>
-                    <Text mt="2px" color="calendar.muted" fontSize="12px">
-                      {feeds[id].helper}
-                    </Text>
-                  </Box>
+                  <Menu.ItemText asChild>
+                    <Box flex="1" minW="0">
+                      <Text fontWeight="500">{feeds[id].name}</Text>
+                      <Text mt="2px" color="calendar.muted" fontSize="12px">
+                        {feeds[id].helper}
+                      </Text>
+                    </Box>
+                  </Menu.ItemText>
                   <Menu.ItemIndicator color="calendar.focus">
                     <Check size={16} aria-hidden="true" />
                   </Menu.ItemIndicator>

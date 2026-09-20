@@ -45,9 +45,19 @@ export default function App() {
     return readExplorerState(localStorage, mediaMatches('(max-width: 700px)'))
   })
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    /* istanbul ignore next -- Vite removes this visual-QA branch in production. */
+    return (
+      import.meta.env.DEV &&
+      new URLSearchParams(window.location.search).has('__panel')
+    )
+  })
   const [status, setStatus] = useState('')
   const [focusDay, setFocusDay] = useState<string | null>(null)
+  /* istanbul ignore next -- Vite removes this visual-QA branch in production. */
+  const forceFiltersOpen =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).has('__panel')
 
   useEffect(() => {
     if (!status) return
@@ -185,7 +195,7 @@ export default function App() {
           feed={explorer.feed}
           filters={explorer.filters}
           isNarrow={isNarrow}
-          open={filtersOpen}
+          open={forceFiltersOpen || filtersOpen}
           activeFilters={activeFilters}
           options={optionsQuery.data}
           optionsPending={optionsQuery.isPending}

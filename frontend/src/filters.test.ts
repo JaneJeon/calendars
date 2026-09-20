@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  buildDtsmFilterModel,
   codexResetTypes,
   dtsmDefaultVenueIds
 } from '@janejeon/calendars-shared'
@@ -13,9 +14,11 @@ import {
   readExplorerState,
   reconcileDtsmFilters,
   reconcileExplorerState,
+  selectionCheckedState,
   selectionSummary,
   sortFilterOptions,
   toggleId,
+  toggleIds,
   writeExplorerState
 } from './filters'
 
@@ -26,7 +29,15 @@ const options = {
     { id: 9000, name: 'Other' }
   ],
   organizers: [{ id: 700, name: 'Host' }],
-  categories: [{ id: 80, name: 'Type' }]
+  categories: [{ id: 80, name: 'Type' }],
+  filterModel: buildDtsmFilterModel({
+    venues: [
+      ...dtsmDefaultVenueIds.map(id => ({ id, name: String(id) })),
+      { id: 9000, name: 'Other' }
+    ],
+    organizers: [{ id: 700, name: 'Host' }],
+    categories: [{ id: 80, name: 'Type' }]
+  })
 }
 
 describe('explorer filters and persistence', () => {
@@ -300,6 +311,14 @@ describe('explorer filters and persistence', () => {
     expect(toggleId(null, 2, true, [1, 2, 3])).toBeNull()
     expect(toggleId([1], 2, true, [1, 2, 3])).toEqual([1, 2])
     expect(toggleId([1, 2], 1, false, [1, 2, 3])).toEqual([2])
+    expect(toggleIds(null, [1, 2], false, [1, 2, 3])).toEqual([3])
+    expect(toggleIds(null, [1, 2], true, [1, 2, 3])).toBeNull()
+    expect(toggleIds([1], [2, 3], true, [1, 2, 3])).toEqual([1, 2, 3])
+    expect(toggleIds([1, 2, 3], [1, 3], false, [1, 2, 3])).toEqual([2])
+    expect(selectionCheckedState(null, [1, 2])).toBe(true)
+    expect(selectionCheckedState([1], [1, 2])).toBe('indeterminate')
+    expect(selectionCheckedState([1, 2], [1, 2])).toBe(true)
+    expect(selectionCheckedState([3], [1, 2])).toBe(false)
   })
 
   it('summarizes unrestricted, default, named, unknown, and multi selections', () => {
@@ -320,6 +339,11 @@ describe('explorer filters and persistence', () => {
     expect(selectionSummary([9000, 9999], options.venues, 'places')).toBe(
       '2 selected'
     )
+    expect(
+      selectionSummary([80], options.categories, 'types', undefined, [
+        { key: 'type', name: 'Type', ids: [80] }
+      ])
+    ).toBe('Type')
   })
 
   it('orders discovered options case-insensitively and breaks ties by ID', () => {

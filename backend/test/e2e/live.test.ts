@@ -126,13 +126,34 @@ describe.skipIf(!runE2E || !deployedUrl)('deployed feed', () => {
       venues: unknown[]
       organizers: unknown[]
       categories: unknown[]
+      filterModel: {
+        version: number
+        placeGroups: Array<{ name: string; ids: number[] }>
+        eventTypes: Array<{ name: string; ids: number[] }>
+      }
     }>()
     expect(options).toMatchObject({
       defaultVenueIds: expect.any(Array),
       venues: expect.any(Array),
       organizers: expect.any(Array),
-      categories: expect.any(Array)
+      categories: expect.any(Array),
+      filterModel: {
+        version: 1,
+        placeGroups: [
+          expect.objectContaining({
+            name: 'B Street',
+            ids: [1201, 1249, 1260, 1328, 3999]
+          })
+        ],
+        eventTypes: expect.any(Array)
+      }
     })
     expect(options.venues.length).toBeGreaterThan(0)
+    expect(options.filterModel.eventTypes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Events', ids: [15, 25] }),
+        expect.objectContaining({ name: 'Promotions', ids: [14, 26] })
+      ])
+    )
   })
 })

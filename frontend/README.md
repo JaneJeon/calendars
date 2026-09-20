@@ -24,8 +24,8 @@ are exported from `theme.ts` and enforced by tests; there is no light theme.
 - `calendar.ts` parses ICS with `ical.js` into one event-self and projects
   multi-day events onto `America/Los_Angeles` dates. All-day `DTEND` remains
   exclusive.
-- `filters.ts` owns validated persistence, DTSM option reconciliation, and
-  canonical subscription URL construction.
+- `filters.ts` owns validated persistence, DTSM option reconciliation, grouped
+  raw-ID selection, and canonical subscription URL construction.
 - `theme.ts` owns the dark semantic tokens and the verified contrast-pair
   inventory.
 
@@ -54,6 +54,13 @@ stored IDs only after it loads. Empty discovery dimensions are treated as
 unknown rather than proof that every saved ID is stale, and derived
 reconciliation is never written back until the user makes a change. A
 discovery outage never discards a saved filter or blocks the default feed.
+
+The backend stores raw DSMA taxonomy rows but discovery also supplies a
+semantic `filterModel`. Places use a checkbox popover with a five-child B Street
+group, Central Park, and searchable other places. Types expose normalized
+Events/Promotions choices plus unknown future categories. Organizer choices are
+searchable and collapse duplicate source records by decoded name. Every choice
+continues to persist and subscribe with raw numeric IDs.
 
 ## API contract
 
@@ -101,3 +108,7 @@ The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README
 show the final implementation at desktop, 390 px, and 320 px, including busy
 overflow, event detail, and long filter-menu states. They are browser captures,
 not Figma artifacts.
+
+The [DTSM filter hotfix captures](../docs/screenshots/dtsm-filter-hotfix/README.md)
+use the synchronized D1 vocabulary and show grouped Places, normalized Types,
+decoded Organizers, and the 320 px hierarchy.

@@ -7,7 +7,8 @@ import {
   dtsmEventScopeValues,
   type CodexResetType,
   type DtsmFilterOption,
-  type DtsmFilterOptionsResponse
+  type DtsmFilterOptionsResponse,
+  type DtsmSemanticChoice
 } from '@janejeon/calendars-shared'
 import { currentMonth, type FeedId, type ViewId } from './calendar'
 
@@ -51,12 +52,15 @@ export function selectionSummary(
   selection: IdSelection,
   options: DtsmFilterOption[],
   noun: string,
-  defaultIds?: readonly number[]
+  defaultIds?: readonly number[],
+  choices: readonly DtsmSemanticChoice[] = []
 ): string {
   if (selection === null) return `All ${noun}`
   if (selection.length === 0) return `No ${noun}`
   if (defaultIds && sameIds(selection, defaultIds))
     return 'B Street + Central Park'
+  const semantic = choices.find(choice => sameIds(selection, choice.ids))
+  if (semantic) return semantic.name
   if (selection.length === 1)
     return (
       options.find(option => option.id === selection[0])?.name ?? '1 selected'
@@ -198,7 +202,11 @@ export function reconcileDtsmFilters(
       ? [...options.defaultVenueIds]
       : reconcileSelection(
           filters.venueIds,
-          options.venues.map(option => option.id),
+          [
+            ...options.venues.map(option => option.id),
+            ...(options.filterModel?.placeGroups.flatMap(group => group.ids) ??
+              [])
+          ],
           [...options.defaultVenueIds]
         )
   return {
@@ -307,10 +315,34 @@ export function toggleId(
   checked: boolean,
   allIds: number[]
 ): IdSelection {
+  return toggleIds(selection, [id], checked, allIds)
+}
+
+export function selectionCheckedState(
+  selection: IdSelection,
+  ids: readonly number[]
+): boolean | 'indeterminate' {
+  if (selection === null) return true
+  const selected = new Set(selection)
+  const count = ids.filter(id => selected.has(id)).length
+  if (count === 0) return false
+  return count === ids.length ? true : 'indeterminate'
+}
+
+export function toggleIds(
+  selection: IdSelection,
+  ids: readonly number[],
+  checked: boolean,
+  allIds: readonly number[]
+): IdSelection {
   if (selection === null)
-    return checked ? null : canonicalIds(allIds.filter(value => value !== id))
+    return checked
+      ? null
+      : canonicalIds(allIds.filter(value => !ids.includes(value)))
   const next = new Set(selection)
-  if (checked) next.add(id)
-  else next.delete(id)
+  for (const id of ids) {
+    if (checked) next.add(id)
+    else next.delete(id)
+  }
   return canonicalIds([...next])
 }

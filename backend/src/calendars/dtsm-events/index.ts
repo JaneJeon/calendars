@@ -1,5 +1,5 @@
 import { UpstreamError } from '@/errors.js'
-import { calendarPaths } from '@janejeon/calendars-shared'
+import { buildDtsmFilterModel, calendarPaths } from '@janejeon/calendars-shared'
 import { buildEvents, decodeEntities } from './events.js'
 import {
   acquireLease,
@@ -84,11 +84,15 @@ export async function buildDtsmFilterOptions(env: Env) {
   const options = await readFilterOptions(env.CALENDAR_DB)
   const decoded = (values: typeof options.venues) =>
     values.map(value => ({ ...value, name: decodeEntities(value.name) }))
-  return {
-    defaultVenueIds: [...DEFAULT_DTSM_VENUE_IDS],
+  const semanticSource = {
     venues: decoded(options.venues),
     organizers: decoded(options.organizers),
     categories: decoded(options.categories)
+  }
+  return {
+    defaultVenueIds: [...DEFAULT_DTSM_VENUE_IDS],
+    ...semanticSource,
+    filterModel: buildDtsmFilterModel(semanticSource)
   }
 }
 

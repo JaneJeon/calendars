@@ -153,6 +153,13 @@ export const menuItemProps = {
   _focusVisible: focusRing
 } as const
 
+export const menuOptionItemProps = {
+  ...menuItemProps,
+  px: undefined,
+  ps: '8',
+  pe: '11px'
+} as const
+
 export type EventTone = 'community' | 'market' | 'music' | 'arts'
 
 export const eventTone = {
