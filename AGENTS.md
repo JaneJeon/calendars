@@ -1,7 +1,9 @@
 # AGENTS.md
 
-Operational facts for this repo. Read this before changing `backend/src/`. The
-full design rationale and history live on Linear issue JANE-240.
+Operational facts for this repo. Read this before changing `backend/src/`. Before
+changing the frontend's product, interaction, responsive, accessibility, or
+visual behavior, read `docs/design/calendar-explorer.md` and run its browser
+contract. The backend design history lives on Linear issue JANE-240.
 
 ## What this is
 

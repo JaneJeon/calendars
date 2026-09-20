@@ -7,6 +7,9 @@
     "dev": "vite",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:browser": "playwright test",
+    "test:browser:update": "playwright test --update-snapshots",
+    "test:browser:update:linux": "bash scripts/update-browser-snapshots-linux.sh",
     "lint": "run-s lint:*",
     "lint:eslint": "eslint .",
     "lint:oxlint": "oxlint",
@@ -30,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",

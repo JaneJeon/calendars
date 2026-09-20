@@ -94,8 +94,10 @@ export function PlaceFilterPopover(props: {
       <Portal>
         <Popover.Positioner>
           <Popover.Content
-            w="min(410px, calc(100vw - 28px))"
+            data-testid="filter-popover-places"
+            w={{ base: 'var(--reference-width)', md: '410px' }}
             minW="0"
+            maxW="calc(100vw - 28px)"
             p="6px"
             borderWidth="1px"
             borderColor="calendar.controlBorder"
@@ -141,6 +143,7 @@ export function PlaceFilterPopover(props: {
               />
             </Flex>
             <Stack
+              data-testid="filter-options-scroll"
               maxH="min(430px, var(--available-height))"
               overflowY="auto"
               gap="2px"

@@ -5,6 +5,11 @@ React application for previewing and subscribing to the calendars served by
 `cal.janejeon.dev`. It uses a verified dark Chakra theme whose contrast pairs
 are exported from `theme.ts` and enforced by tests; there is no light theme.
 
+The canonical product, interaction, responsive, accessibility, visual, and
+verification contract is [`docs/design/calendar-explorer.md`](../docs/design/calendar-explorer.md).
+Read it before changing the interface. The browser contract below makes its
+surface × viewport × interaction-state denominator executable.
+
 ## Architecture
 
 - `App.tsx` is the state/data orchestrator. It owns query identity, persisted
@@ -85,6 +90,7 @@ npm run dev
 npm run lint
 npm run test:coverage
 npm run build
+npm run test:browser
 ```
 
 The Vite-only `__scenario` query exercises the real parser, state model, and
@@ -103,6 +109,25 @@ emitted by the production build. Visual QA covers desktop, 390 px, and 320 px;
 Grid and List; menus and popovers; empty/failure states; keyboard and pointer
 dismissal; focus return; coarse targets; clipping; runtime logs; and computed
 contrast.
+
+`test:browser` runs Playwright against the real Vite application and those
+production-shaped fixtures. Chromium covers the complete surface matrix;
+WebKit repeats the critical 320 px Type popover. The tests combine screenshot
+snapshots with DOM rectangle and computed-style assertions for trigger/panel
+alignment, viewport containment, 44 px targets, control/label overlap, pointer
+versus keyboard focus, dismissal, and focus return. Update snapshots only for
+an intentional reviewed change with `npm run test:browser:update`.
+
+Install the local browser binaries once with:
+
+```sh
+npx playwright install chromium webkit
+```
+
+`npm run test:browser:update` regenerates the current platform's snapshots.
+`npm run test:browser:update:linux` uses the pinned official Playwright Docker
+image to regenerate the Linux baselines used by CI without replacing the
+host's `node_modules`. CI runs the browser job inside that same pinned image.
 
 The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README.md)
 show the final implementation at desktop, 390 px, and 320 px, including busy
