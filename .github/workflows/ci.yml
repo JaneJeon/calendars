@@ -35,8 +35,63 @@ jobs:
       - name: Run affected checks
         run: npx nx affected -t lint,test:coverage,build --base="$BASE_SHA" --head="$HEAD_SHA" --parallel=3
 
+  browser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Find affected frontend
+        id: affected
+        run: |
+          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA=$(git rev-list --max-parents=0 HEAD)
+            echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+          fi
+          affected=$(npx nx show projects --affected --base="$BASE_SHA" --head="$HEAD_SHA" --json)
+          echo "$affected"
+          if [[ "$affected" == *'"frontend"'* ]]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache Playwright browsers
+        if: steps.affected.outputs.frontend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.affected.outputs.frontend == 'true'
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run browser contract
+        if: steps.affected.outputs.frontend == 'true'
+        run: npm run test:browser
+
+      - name: Upload browser diagnostics
+        if: failure() && steps.affected.outputs.frontend == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-contract-${{ github.run_id }}
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
   deploy:
-    needs: test
+    needs: [test, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     concurrency:
@@ -69,6 +124,11 @@ jobs:
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
+          if [[ "$affected" == *'"frontend"'* ]]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy affected projects
         run: npx nx affected -t deploy --base="$BASE_SHA" --head="$HEAD_SHA" --parallel=2
@@ -99,3 +159,26 @@ jobs:
         env:
           RUN_E2E: '1'
           DEPLOYED_URL: https://cal.janejeon.dev/codex-resets.ics
+
+      - name: Wait for the frontend to be served
+        if: steps.affected.outputs.frontend == 'true'
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -A codex-ci -X GET --fail --no-progress-meter --output /dev/null https://cal.janejeon.com; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The frontend did not return 200 within 5 minutes" >&2
+          exit 1
+
+      - name: Install Chromium for deployed frontend smoke
+        if: steps.affected.outputs.frontend == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke-test the deployed frontend geometry
+        if: steps.affected.outputs.frontend == 'true'
+        working-directory: frontend
+        run: npx playwright test -g '@deployed' --project=chromium
+        env:
+          DEPLOYED_FRONTEND_URL: https://cal.janejeon.com

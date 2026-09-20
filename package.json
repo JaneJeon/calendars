@@ -12,6 +12,8 @@
     "dev": "nx run-many --targets=dev --projects=backend,frontend --parallel=2",
     "test": "nx run-many --targets=test --all --parallel=3",
     "test:coverage": "nx run-many --targets=test:coverage --all --parallel=3",
+    "test:browser": "nx run frontend:test:browser",
+    "test:browser:update": "nx run frontend:test:browser:update",
     "test:e2e": "nx run backend:test:e2e",
     "lint": "nx run-many --targets=lint --all --parallel=3",
     "format": "nx run-many --targets=format --all --parallel=3",

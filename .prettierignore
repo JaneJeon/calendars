@@ -1,6 +1,8 @@
 backend/worker-configuration.d.ts
 **/coverage/
 **/dist/
+**/playwright-report/
+**/test-results/
 **/.wrangler/
 
 /.nx/cache
