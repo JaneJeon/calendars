@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { setMedia } from './test-setup'
 import { system } from './theme'
+import { visualCalendar, visualOptions } from './visual-fixtures'
 
 function renderApp() {
   const client = new QueryClient({
@@ -247,9 +248,45 @@ describe('Calendar explorer', () => {
     )
   }, 15_000)
 
+  it('uses the exact filtered URL for subscription actions', async () => {
+    const user = userEvent.setup()
+    await renderScenario()
+    await user.click(
+      screen.getByRole('button', { name: /Downtown San Mateo events/ })
+    )
+    await user.click(
+      await screen.findByRole('menuitemradio', { name: /Codex reset watch/ })
+    )
+    const banked = await screen.findByRole('checkbox', {
+      name: 'Banked resets'
+    })
+    await user.click(banked)
+    await screen.findByRole('button', { name: /Codex Reset,/ })
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+    expect(screen.getByText('Apple Calendar').closest('a')).toHaveAttribute(
+      'href',
+      'webcal://localhost:8787/codex-resets.ics?types=regular,scheduled,forecast'
+    )
+  })
+
   it('renders retryable feed and options failures', async () => {
     const user = userEvent.setup()
-    window.history.replaceState({}, '', '/?__scenario=feed-error')
+    let feedAttempts = 0
+    let optionAttempts = 0
+    const request = vi.fn<typeof fetch>(async input => {
+      const url = new URL(String(input))
+      if (url.pathname.endsWith('/options.json')) {
+        optionAttempts += 1
+        return new Response(JSON.stringify(visualOptions), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      feedAttempts += 1
+      if (feedAttempts <= 2)
+        return new Response('temporary feed failure', { status: 503 })
+      return new Response(visualCalendar('busy', 'dtsm', url.toString()))
+    })
+    vi.stubGlobal('fetch', request)
     const first = renderApp()
     expect(
       await screen.findByText(
@@ -262,13 +299,58 @@ describe('Calendar explorer', () => {
       screen.getByRole('button', { name: 'Add to calendar' })
     ).toHaveAccessibleDescription(/Retry this calendar/)
     await user.click(screen.getByRole('button', { name: /Retry/ }))
+    expect(
+      await screen.findByRole('button', { name: /Yoga in the Park/ })
+    ).toBeVisible()
+    expect(feedAttempts).toBe(3)
     first.unmount()
-    window.history.replaceState({}, '', '/?__scenario=options-error')
+
+    feedAttempts = 0
+    optionAttempts = 0
+    request.mockImplementation(async input => {
+      const url = new URL(String(input))
+      if (url.pathname.endsWith('/options.json')) {
+        optionAttempts += 1
+        if (optionAttempts <= 2)
+          return new Response('temporary options failure', { status: 503 })
+        return new Response(JSON.stringify(visualOptions), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      return new Response(visualCalendar('busy', 'dtsm', url.toString()))
+    })
     renderApp()
     expect(
       await screen.findByText(/Filters are unavailable/, {}, { timeout: 3000 })
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(
+      await screen.findByRole('button', {
+        name: 'Places: B Street + Central Park'
+      })
+    ).toBeVisible()
+    expect(optionAttempts).toBe(3)
+  })
+
+  it('does not persist discovery reconciliation and reports storage failure', async () => {
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({
+        filters: { dtsm: { venueIds: [999999], organizerIds: null } }
+      })
+    )
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    await renderScenario()
+    expect(setItem).not.toHaveBeenCalled()
+
+    setItem.mockImplementation(() => {
+      throw new Error('quota')
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'List' }))
+    expect(
+      await screen.findByText(/this browser could not save it/i)
+    ).toBeVisible()
   })
 
   it('filters all Codex event types to an empty state', async () => {
@@ -363,8 +445,7 @@ describe('Calendar explorer', () => {
     ).toHaveTextContent('All resets')
   })
 
-  it('retries a failed feed from List', async () => {
-    const user = userEvent.setup()
+  it('renders a failed feed in the persisted List representation', async () => {
     localStorage.setItem(
       'calendar-explorer:v1',
       JSON.stringify({ view: 'list' })
@@ -380,6 +461,6 @@ describe('Calendar explorer', () => {
       'aria-selected',
       'true'
     )
-    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
   })
 })

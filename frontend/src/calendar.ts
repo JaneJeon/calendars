@@ -10,18 +10,29 @@ export interface CalendarDate {
   day: number
 }
 
-export interface CalendarEvent {
+interface CalendarEventBase {
   uid: string
   calendar: FeedId
   title: string
-  start: Date | CalendarDate
-  end: Date | CalendarDate
-  allDay: boolean
   description?: string
   location?: string
   categories: string[]
   url?: string
 }
+
+export type CalendarEvent = CalendarEventBase &
+  (
+    | {
+        allDay: true
+        start: CalendarDate
+        end: CalendarDate
+      }
+    | {
+        allDay: false
+        start: Date
+        end: Date
+      }
+  )
 
 export interface EventProjection {
   key: string
@@ -84,33 +95,42 @@ export function parseCalendar(
   const root = new ICAL.Component(ICAL.parse(source))
   return root.getAllSubcomponents('vevent').map(component => {
     const event = new ICAL.Event(component)
-    const allDay = event.startDate.isDate
-    const start: Date | CalendarDate = allDay
-      ? {
-          year: event.startDate.year,
-          month: event.startDate.month,
-          day: event.startDate.day
-        }
-      : event.startDate.toJSDate()
-    const end: Date | CalendarDate = allDay
-      ? {
-          year: event.endDate.year,
-          month: event.endDate.month,
-          day: event.endDate.day
-        }
-      : event.endDate.toJSDate()
     const rawUrl = component.getFirstPropertyValue('url')
-    return {
+    const common: CalendarEventBase = {
       uid: event.uid,
       calendar,
       title: event.summary || 'Untitled event',
-      start,
-      end,
-      allDay,
       description: optional(event.description),
       location: optional(event.location),
       categories: propertyStrings(component, 'categories'),
       url: typeof rawUrl === 'string' ? optional(rawUrl) : undefined
+    }
+    if (event.startDate.isDate) {
+      return {
+        ...common,
+        allDay: true,
+        start: {
+          year: event.startDate.year,
+          month: event.startDate.month,
+          day: event.startDate.day
+        },
+        end: {
+          year: event.endDate.year,
+          month: event.endDate.month,
+          day: event.endDate.day
+        }
+      }
+    }
+    if (
+      event.startDate.zone.tzid === 'floating' ||
+      event.endDate.zone.tzid === 'floating'
+    )
+      throw new Error('Timed calendar events must include a timezone')
+    return {
+      ...common,
+      allDay: false,
+      start: event.startDate.toJSDate(),
+      end: event.endDate.toJSDate()
     }
   })
 }
@@ -153,29 +173,48 @@ export function addDateDays(date: CalendarDate, days: number): CalendarDate {
   }
 }
 
-function coveredDates(event: CalendarEvent): CalendarDate[] {
-  const start = event.allDay
-    ? (event.start as CalendarDate)
-    : dateFromInstant(event.start as Date)
-  const exclusiveEnd = event.allDay
-    ? (event.end as CalendarDate)
-    : dateFromInstant(
-        new Date(
-          Math.max(
-            (event.start as Date).getTime(),
-            (event.end as Date).getTime() - 1
-          )
-        )
-      )
+function laterDate(left: CalendarDate, right: CalendarDate): CalendarDate {
+  return dateKey(left) >= dateKey(right) ? left : right
+}
+
+function earlierDate(left: CalendarDate, right: CalendarDate): CalendarDate {
+  return dateKey(left) <= dateKey(right) ? left : right
+}
+
+function eventDateBounds(event: CalendarEvent): {
+  start: CalendarDate
+  endInclusive: CalendarDate
+} {
+  if (event.allDay) {
+    const endInclusive = addDateDays(event.end, -1)
+    return {
+      start: event.start,
+      endInclusive: laterDate(event.start, endInclusive)
+    }
+  }
+  const start = dateFromInstant(event.start)
+  return {
+    start,
+    endInclusive: dateFromInstant(
+      new Date(Math.max(event.start.getTime(), event.end.getTime() - 1))
+    )
+  }
+}
+
+function coveredDates(
+  event: CalendarEvent,
+  range?: { start: CalendarDate; endExclusive: CalendarDate }
+): CalendarDate[] {
+  const bounds = eventDateBounds(event)
+  const start = range ? laterDate(bounds.start, range.start) : bounds.start
+  const endInclusive = range
+    ? earlierDate(bounds.endInclusive, addDateDays(range.endExclusive, -1))
+    : bounds.endInclusive
+  if (dateKey(start) > dateKey(endInclusive)) return []
   const result: CalendarDate[] = []
   for (let cursor = start; ; cursor = addDateDays(cursor, 1)) {
     result.push(cursor)
-    if (
-      event.allDay
-        ? dateKey(addDateDays(cursor, 1)) >= dateKey(exclusiveEnd)
-        : dateKey(cursor) >= dateKey(exclusiveEnd)
-    )
-      return result
+    if (dateKey(cursor) >= dateKey(endInclusive)) return result
   }
 }
 
@@ -203,16 +242,16 @@ export function eventToneFor(event: CalendarEvent): EventTone {
 
 export function projectEvents(events: CalendarEvent[]): EventProjection[] {
   return events.flatMap(event =>
-    coveredDates(event).map((date, index) => ({
+    coveredDates(event).map(date => ({
       key: `${event.uid}@${dateKey(date)}`,
       dateKey: dateKey(date),
       event,
       timeLabel:
-        index > 0
+        dateKey(date) !== dateKey(eventDateBounds(event).start)
           ? 'Continues'
           : event.allDay
             ? 'All day'
-            : timeFormatter.format(event.start as Date),
+            : timeFormatter.format(event.start),
       tone: eventToneFor(event)
     }))
   )
@@ -222,8 +261,26 @@ export function projectionsForMonth(
   events: CalendarEvent[],
   month: string
 ): EventProjection[] {
-  return projectEvents(events)
-    .filter(projection => projection.dateKey.startsWith(`${month}-`))
+  const [year, monthNumber] = month.split('-').map(Number)
+  const range = {
+    start: { year: year!, month: monthNumber!, day: 1 },
+    endExclusive: dateFromKey(`${shiftMonth(month, 1)}-01`)
+  }
+  return events
+    .flatMap(event =>
+      coveredDates(event, range).map(date => ({
+        key: `${event.uid}@${dateKey(date)}`,
+        dateKey: dateKey(date),
+        event,
+        timeLabel:
+          dateKey(date) !== dateKey(eventDateBounds(event).start)
+            ? 'Continues'
+            : event.allDay
+              ? 'All day'
+              : timeFormatter.format(event.start),
+        tone: eventToneFor(event)
+      }))
+    )
     .sort((left, right) => {
       const date = left.dateKey.localeCompare(right.dateKey)
       if (date !== 0) return date
@@ -288,16 +345,15 @@ export function shortWeekday(key: string): string {
 
 export function eventDetailTime(event: CalendarEvent): string {
   if (!event.allDay) {
-    const start = event.start as Date
-    const end = event.end as Date
+    const { start, end } = event
     const sameDay =
       dateKey(dateFromInstant(start)) === dateKey(dateFromInstant(end))
     return sameDay
       ? `${detailDateTimeFormatter.format(start)} to ${timeFormatter.format(end)}`
       : `${detailDateTimeFormatter.format(start)} to ${detailDateTimeFormatter.format(end)}`
   }
-  const start = event.start as CalendarDate
-  const inclusiveEnd = addDateDays(event.end as CalendarDate, -1)
+  const { start } = event
+  const inclusiveEnd = addDateDays(event.end, -1)
   return dateKey(start) === dateKey(inclusiveEnd)
     ? `${fullDate(dateKey(start))} · All day`
     : `${fullDate(dateKey(start))} through ${fullDate(dateKey(inclusiveEnd))} · All day`

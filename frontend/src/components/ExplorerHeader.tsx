@@ -33,7 +33,7 @@ function CalendarMenu(props: {
         <Button
           variant="plain"
           h="auto"
-          minH="44px"
+          minH="touchTarget"
           mx="-8px"
           px="8px"
           py="4px"
@@ -102,7 +102,7 @@ function SubscriptionMenu(props: {
       <Button
         disabled
         aria-describedby="subscription-status"
-        h="44px"
+        h="touchTarget"
         px="14px"
         borderRadius="10px"
         bg="action.solid"
@@ -159,7 +159,7 @@ function SubscriptionMenu(props: {
         <Button
           disabled={props.disabled}
           aria-describedby={props.disabled ? 'subscription-status' : undefined}
-          h="44px"
+          h="touchTarget"
           px="14px"
           borderRadius="10px"
           bg="action.solid"

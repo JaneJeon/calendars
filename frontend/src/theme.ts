@@ -21,6 +21,9 @@ const config = defineConfig({
             "Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
         }
       },
+      sizes: {
+        touchTarget: { value: '44px' }
+      },
       colors: {
         civic: {
           canvas: { value: '#0E1621' },
@@ -114,7 +117,7 @@ export const focusRing = {
 } as const
 
 export const controlProps = {
-  minH: '44px',
+  minH: 'touchTarget',
   borderWidth: '1px',
   borderColor: 'calendar.controlBorder',
   borderRadius: '10px',
@@ -139,7 +142,7 @@ export const menuContentProps = {
 } as const
 
 export const menuItemProps = {
-  minH: '44px',
+  minH: 'touchTarget',
   px: '11px',
   py: '9px',
   borderRadius: '8px',

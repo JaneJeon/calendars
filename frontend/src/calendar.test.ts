@@ -44,6 +44,13 @@ END:VEVENT\r
 END:VCALENDAR\r
 `
 
+function requireTimed(
+  event: CalendarEvent | undefined
+): Extract<CalendarEvent, { allDay: false }> {
+  if (!event || event.allDay) throw new Error('expected a timed event')
+  return event
+}
+
 describe('calendar model', () => {
   it('parses timed, all-day, and optional event fields', () => {
     const events = parseCalendar(source, 'dtsm')
@@ -92,6 +99,68 @@ describe('calendar model', () => {
     expect(projectionsForMonth(events, '2026-09')[0]!.event.allDay).toBe(true)
   })
 
+  it('bounds projection work to the requested month for extreme spans', () => {
+    const [event] = parseCalendar(
+      `BEGIN:VCALENDAR\r
+BEGIN:VEVENT\r
+UID:millennium\r
+SUMMARY:Long span\r
+DTSTART;VALUE=DATE:20200101\r
+DTEND;VALUE=DATE:30260101\r
+END:VEVENT\r
+END:VCALENDAR\r
+`,
+      'dtsm'
+    )
+    const projections = projectionsForMonth([event!], '2026-09')
+    expect(projections).toHaveLength(30)
+    expect(projections[0]).toMatchObject({
+      dateKey: '2026-09-01',
+      timeLabel: 'Continues'
+    })
+    expect(projections[29]!.dateKey).toBe('2026-09-30')
+  })
+
+  it('rejects floating timed values instead of applying the viewer timezone', () => {
+    expect(() =>
+      parseCalendar(
+        `BEGIN:VCALENDAR\r
+BEGIN:VEVENT\r
+UID:floating\r
+SUMMARY:Floating\r
+DTSTART:20260912T120000\r
+DTEND:20260912T130000\r
+END:VEVENT\r
+END:VCALENDAR\r
+`,
+        'dtsm'
+      )
+    ).toThrow('Timed calendar events must include a timezone')
+  })
+
+  it('delegates folding, escaping, unicode, and category lists to ical.js', () => {
+    const [event] = parseCalendar(
+      `BEGIN:VCALENDAR\r
+BEGIN:VEVENT\r
+UID:escaped\r
+SUMMARY:Café and a deliberately folded \r
+ title\r
+DTSTART;VALUE=DATE:20260912\r
+DTEND;VALUE=DATE:20260913\r
+DESCRIPTION:Line one\\nLine two\\, still here\\; yes\r
+CATEGORIES:Arts\\, Culture,Community\r
+END:VEVENT\r
+END:VCALENDAR\r
+`,
+      'dtsm'
+    )
+    expect(event).toMatchObject({
+      title: 'Café and a deliberately folded title',
+      description: 'Line one\nLine two, still here; yes',
+      categories: ['Arts, Culture', 'Community']
+    })
+  })
+
   it('formats date utilities and month boundaries', () => {
     expect(dateKey({ year: 2026, month: 9, day: 2 })).toBe('2026-09-02')
     expect(dateFromKey('2026-09-02')).toEqual({ year: 2026, month: 9, day: 2 })
@@ -111,7 +180,8 @@ describe('calendar model', () => {
   })
 
   it('formats event details and stable semantic tones', () => {
-    const [allDay, timed, bare] = parseCalendar(source, 'dtsm')
+    const [allDay, parsedTimed, bare] = parseCalendar(source, 'dtsm')
+    const timed = requireTimed(parsedTimed)
     expect(eventDetailTime(allDay!)).toContain('through')
     expect(eventDetailTime(bare!)).toContain('All day')
     expect(eventDetailTime(timed!)).toContain('to')
@@ -146,9 +216,10 @@ describe('calendar model', () => {
   })
 
   it('sorts projections by day, all-day status, time, and title', () => {
-    const [allDay, timed] = parseCalendar(source, 'dtsm')
+    const [allDay, parsedTimed] = parseCalendar(source, 'dtsm')
+    const timed = requireTimed(parsedTimed)
     const early = {
-      ...timed!,
+      ...timed,
       uid: 'early-z',
       title: 'Zulu',
       start: new Date('2026-09-12T17:00:00Z'),

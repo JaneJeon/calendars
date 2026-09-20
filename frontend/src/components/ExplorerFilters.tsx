@@ -40,7 +40,7 @@ function EntityFilterMenu(props: {
   noun: string
   selection: IdSelection
   options: DtsmFilterOption[]
-  isDefaultPlaces?: boolean
+  defaultIds?: readonly number[]
   onChange: (selection: IdSelection) => void
 }) {
   const orderedOptions = sortFilterOptions(props.options)
@@ -49,7 +49,7 @@ function EntityFilterMenu(props: {
     props.selection,
     props.options,
     props.noun,
-    props.isDefaultPlaces
+    props.defaultIds
   )
   return (
     <Menu.Root
@@ -127,7 +127,7 @@ function FilterCheckbox(props: {
     <Checkbox.Root
       checked={props.checked}
       onCheckedChange={({ checked }) => props.onChange(Boolean(checked))}
-      minH="44px"
+      minH="touchTarget"
       px="10px"
       borderWidth="1px"
       borderColor="calendar.controlBorder"
@@ -230,7 +230,9 @@ function FilterControls(props: {
                 noun={noun}
                 selection={selection}
                 options={values}
-                isDefaultPlaces={isDefaultPlaces}
+                defaultIds={
+                  isDefaultPlaces ? props.options?.defaultVenueIds : undefined
+                }
                 onChange={value => props.onDtsmChange(key, value)}
               />
             </Flex>

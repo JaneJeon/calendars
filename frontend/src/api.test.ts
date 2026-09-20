@@ -66,12 +66,39 @@ describe('calendar API client', () => {
     })
     const generic = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(new Response('', { status: 500 }))
+      .mockResolvedValue(new Response(null, { status: 500 }))
     await expect(
       fetchCalendar('https://cal.test/feed.ics', 'codex', undefined, generic)
     ).rejects.toEqual(
       new CalendarRequestError('Calendar service returned 500', 500)
     )
+    const challenge = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('<html>Cloudflare challenge</html>', {
+        status: 503,
+        headers: { 'Content-Type': 'text/html' }
+      })
+    )
+    await expect(fetchDtsmOptions(undefined, challenge)).rejects.toEqual(
+      new CalendarRequestError('Calendar service returned 503', 503)
+    )
+  })
+
+  it('rejects structurally invalid discovery and non-calendar success bodies', async () => {
+    const invalidOptions = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ defaultVenueIds: ['bad'] }))
+      )
+    await expect(fetchDtsmOptions(undefined, invalidOptions)).rejects.toThrow(
+      'invalid filter options'
+    )
+
+    const html = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('<html>not a calendar</html>'))
+    await expect(
+      fetchCalendar('https://cal.test/feed.ics', 'dtsm', undefined, html)
+    ).rejects.toBeInstanceOf(Error)
   })
 
   it('uses development fixtures for busy, empty, and failure states', async () => {
@@ -92,6 +119,16 @@ describe('calendar API client', () => {
         request
       )
     ).toHaveLength(1)
+    window.history.replaceState({}, '', '/?__scenario=long')
+    expect(
+      await fetchCalendar(
+        'http://localhost:8787/dtsm-events.ics?scope=all',
+        'dtsm',
+        undefined,
+        request
+      )
+    ).toHaveLength(1)
+    window.history.replaceState({}, '', '/?__scenario=busy')
     expect(
       await fetchCalendar(
         'http://localhost:8787/dtsm-events.ics?organizers=700&categories=80',

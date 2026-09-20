@@ -221,7 +221,9 @@ export function visualCalendar(
             const types = url.searchParams.get('types')?.split(',')
             return !types || types.includes(event.category)
           })
-        : filteredDtsmEvents(url)
+        : filteredDtsmEvents(url).filter(
+            event => scenario !== 'long' || event.id === 'long'
+          )
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

@@ -69,7 +69,9 @@ export async function buildCalendarBody(
         freshnessSeconds: calendar.responseCache.freshnessSeconds,
         expirationTtlSeconds: resolvedExpirationTtl,
         label: calendar.name,
-        build
+        build,
+        fallbackEligible: body =>
+          calendar.responseCache?.fallbackEligible?.(body, request) ?? true
       })
     : build()
 }
@@ -81,9 +83,14 @@ export default {
 }
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
-  const { pathname } = new URL(request.url)
+  const url = new URL(request.url)
+  const { pathname } = url
   if (pathname === calendarApiPaths.dtsmOptions) {
     try {
+      if (url.searchParams.size > 0)
+        throw new InvalidRequestError(
+          'DTSM filter options do not accept query parameters'
+        )
       return jsonResponse(await buildDtsmFilterOptions(env), 60 * 60)
     } catch (error: unknown) {
       return errorResponse('DTSM filter options', error)

@@ -64,8 +64,8 @@ export function CalendarPanel(props: {
               aria-label="Previous month"
               onClick={() => props.onMonthChange(shiftMonth(props.month, -1))}
               {...controlProps}
-              minW={{ base: '44px', md: '38px' }}
-              minH={{ base: '44px', md: '38px' }}
+              minW={{ base: 'touchTarget', md: '38px' }}
+              minH={{ base: 'touchTarget', md: '38px' }}
               p="0"
             >
               <ChevronLeft size={16} />
@@ -74,8 +74,8 @@ export function CalendarPanel(props: {
               aria-label="Next month"
               onClick={() => props.onMonthChange(shiftMonth(props.month, 1))}
               {...controlProps}
-              minW={{ base: '44px', md: '38px' }}
-              minH={{ base: '44px', md: '38px' }}
+              minW={{ base: 'touchTarget', md: '38px' }}
+              minH={{ base: 'touchTarget', md: '38px' }}
               p="0"
             >
               <ChevronRight size={16} />
@@ -97,7 +97,7 @@ export function CalendarPanel(props: {
             </Heading>
             <Button
               variant="plain"
-              minH={{ base: '44px', md: 'auto' }}
+              minH={{ base: 'touchTarget', md: 'auto' }}
               p={{ base: '8px 3px', md: '3px' }}
               color="calendar.link"
               fontSize="12px"
@@ -131,7 +131,7 @@ export function CalendarPanel(props: {
             <Tabs.Trigger
               key={view}
               value={view}
-              minH={{ base: '44px', md: '36px' }}
+              minH={{ base: 'touchTarget', md: '36px' }}
               px="12px"
               borderRadius="8px"
               color="calendar.muted"

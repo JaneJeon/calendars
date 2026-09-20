@@ -102,7 +102,7 @@ export function EventDetails(props: {
           alignItems="center"
           gap="4px"
           mt="15px"
-          minH={{ base: '44px', md: 'auto' }}
+          minH={{ base: 'touchTarget', md: 'auto' }}
           py={{ base: '8px', md: '0' }}
           color="calendar.link"
           fontSize="13px"
@@ -157,8 +157,8 @@ export function EventTrigger(props: {
                 <CloseButton
                   aria-label="Close event details"
                   size="sm"
-                  minW={{ base: '44px', md: '32px' }}
-                  minH={{ base: '44px', md: '32px' }}
+                  minW={{ base: 'touchTarget', md: '32px' }}
+                  minH={{ base: 'touchTarget', md: '32px' }}
                   color="calendar.muted"
                   _hover={{ bg: 'action.subtle', color: 'calendar.text' }}
                   _focusVisible={focusRing}

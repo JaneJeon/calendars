@@ -34,6 +34,7 @@ export interface ExplorerState {
 }
 
 export const STORAGE_KEY = 'calendar-explorer:v1'
+export const MAX_PERSISTED_SELECTION_IDS = 1_000
 
 export function sortFilterOptions(
   options: readonly DtsmFilterOption[]
@@ -50,15 +51,11 @@ export function selectionSummary(
   selection: IdSelection,
   options: DtsmFilterOption[],
   noun: string,
-  isDefaultPlaces = false
+  defaultIds?: readonly number[]
 ): string {
   if (selection === null) return `All ${noun}`
   if (selection.length === 0) return `No ${noun}`
-  if (
-    isDefaultPlaces &&
-    selection.length === dtsmDefaultVenueIds.length &&
-    dtsmDefaultVenueIds.every(id => selection.includes(id))
-  )
+  if (defaultIds && sameIds(selection, defaultIds))
     return 'B Street + Central Park'
   if (selection.length === 1)
     return (
@@ -88,7 +85,8 @@ export function defaultExplorerState(
 
 function numberSelection(value: unknown, fallback: IdSelection): IdSelection {
   if (value === null) return null
-  if (!Array.isArray(value)) return fallback
+  if (!Array.isArray(value) || value.length > MAX_PERSISTED_SELECTION_IDS)
+    return fallback
   if (
     value.some(
       item =>
@@ -182,6 +180,9 @@ function reconcileSelection(
   fallback: IdSelection
 ): IdSelection {
   if (selection === null || selection.length === 0) return selection
+  // An empty discovery dimension does not prove every persisted ID is stale;
+  // it can be a temporarily degraded or newly initialized catalog.
+  if (validIds.length === 0) return selection
   const valid = new Set(validIds)
   const result = selection.filter(id => valid.has(id))
   return result.length > 0 ? result : fallback
@@ -233,7 +234,7 @@ function canonicalIds(values: number[]): number[] {
   return [...new Set(values)].sort((left, right) => left - right)
 }
 
-function sameIds(left: number[], right: readonly number[]): boolean {
+export function sameIds(left: number[], right: readonly number[]): boolean {
   const canonicalLeft = canonicalIds(left)
   const canonicalRight = canonicalIds([...right])
   return (

@@ -81,7 +81,8 @@ return HTTP 400 with `Cache-Control: no-store`.
 returns the configured default venue IDs plus alphabetized venues, organizers,
 and categories referenced by at least one non-withdrawn stored event. It has an
 independent one-hour public response cache and the same stored-data fallback
-policy as the feed.
+policy for source refreshes as the feed. It has no serialized KV fallback of its
+own, so D1/application failures return a logged 500.
 
 ## Parsing and cache identity
 

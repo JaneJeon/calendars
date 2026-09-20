@@ -5,6 +5,7 @@ import {
   CUSTOM_CODEX_CACHE_RETENTION_SECONDS,
   codexResponseCacheExpirationTtl,
   codexResponseCacheKey,
+  codexResponseFallbackEligible,
   filterCodexResetEvents,
   parseCodexResetFilter
 } from '@/calendars/codex-resets/query.js'
@@ -80,5 +81,17 @@ describe('Codex reset query filters', () => {
     expect(codexResponseCacheExpirationTtl(subset)).toBe(
       CUSTOM_CODEX_CACHE_RETENTION_SECONDS
     )
+    expect(
+      codexResponseFallbackEligible('BEGIN:VCALENDAR\r\nEND:VCALENDAR', base)
+    ).toBe(true)
+    expect(
+      codexResponseFallbackEligible('BEGIN:VCALENDAR\r\nEND:VCALENDAR', subset)
+    ).toBe(false)
+    expect(
+      codexResponseFallbackEligible(
+        'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nEND:VEVENT\r\nEND:VCALENDAR',
+        subset
+      )
+    ).toBe(true)
   })
 })

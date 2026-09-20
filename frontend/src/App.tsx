@@ -29,6 +29,7 @@ import {
   defaultExplorerState,
   readExplorerState,
   reconcileExplorerState,
+  sameIds,
   writeExplorerState,
   type ExplorerState,
   type IdSelection
@@ -64,12 +65,6 @@ export default function App() {
     () => reconcileExplorerState(state, optionsQuery.data),
     [optionsQuery.data, state]
   )
-  useEffect(() => {
-    /* istanbul ignore else -- localStorage is present in every supported browser. */
-    if (typeof localStorage !== 'undefined')
-      writeExplorerState(localStorage, explorer)
-  }, [explorer])
-
   const feedUrl = useMemo(
     () => buildFeedUrl(CALENDAR_API_ORIGIN, explorer.feed, explorer.filters),
     [explorer.feed, explorer.filters]
@@ -88,7 +83,14 @@ export default function App() {
 
   const change = (fn: (current: ExplorerState) => ExplorerState) => {
     setSelectedKey(null)
-    setState(current => fn(reconcileExplorerState(current, optionsQuery.data)))
+    const next = fn(explorer)
+    setState(next)
+    /* istanbul ignore else -- localStorage is present in every supported browser. */
+    if (
+      typeof localStorage !== 'undefined' &&
+      !writeExplorerState(localStorage, next)
+    )
+      setStatus('This change works now, but this browser could not save it.')
   }
   const setFeed = (feed: FeedId) => change(current => ({ ...current, feed }))
   const setMonth = (month: string) => change(current => ({ ...current, month }))
@@ -126,12 +128,11 @@ export default function App() {
     })
   }, [explorer.view, focusDay, projections])
 
+  const defaultVenueIds =
+    optionsQuery.data?.defaultVenueIds ?? dtsmDefaultVenueIds
   const venueIsDefault =
     explorer.filters.dtsm.venueIds !== null &&
-    explorer.filters.dtsm.venueIds.length === dtsmDefaultVenueIds.length &&
-    dtsmDefaultVenueIds.every(id =>
-      explorer.filters.dtsm.venueIds?.includes(id)
-    )
+    sameIds(explorer.filters.dtsm.venueIds, defaultVenueIds)
   const activeFilters =
     explorer.feed === 'dtsm'
       ? Number(!venueIsDefault) +

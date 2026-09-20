@@ -4,6 +4,7 @@ import {
   dtsmDefaultVenueIds
 } from '@janejeon/calendars-shared'
 import {
+  MAX_PERSISTED_SELECTION_IDS,
   STORAGE_KEY,
   buildCodexFeedPath,
   buildDtsmFeedPath,
@@ -49,7 +50,7 @@ describe('explorer filters and persistence', () => {
           month: '2026-11',
           filters: {
             dtsm: {
-              venueIds: [9000, 9000],
+              venueIds: [9001, 9000, 9000],
               organizerIds: null,
               categoryIds: []
             },
@@ -62,7 +63,11 @@ describe('explorer filters and persistence', () => {
       view: 'list',
       month: '2026-11',
       filters: {
-        dtsm: { venueIds: [9000], organizerIds: null, categoryIds: [] },
+        dtsm: {
+          venueIds: [9000, 9001],
+          organizerIds: null,
+          categoryIds: []
+        },
         codex: { types: ['regular', 'forecast'] }
       }
     })
@@ -123,6 +128,25 @@ describe('explorer filters and persistence', () => {
     ).toEqual(defaultExplorerState(false, new Date('2026-09-12T12:00:00Z')))
     expect(
       readExplorerState(
+        {
+          getItem: () =>
+            JSON.stringify({
+              filters: {
+                dtsm: {
+                  venueIds: Array.from(
+                    { length: MAX_PERSISTED_SELECTION_IDS + 1 },
+                    (_, index) => index + 1
+                  )
+                }
+              }
+            })
+        },
+        false,
+        new Date('2026-09-12T12:00:00Z')
+      ).filters.dtsm.venueIds
+    ).toEqual([...dtsmDefaultVenueIds])
+    expect(
+      readExplorerState(
         { getItem: () => JSON.stringify({ filters: null }) },
         false,
         new Date('2026-09-12T12:00:00Z')
@@ -164,6 +188,17 @@ describe('explorer filters and persistence', () => {
         options
       )
     ).toEqual({ venueIds: null, organizerIds: [700], categoryIds: null })
+    expect(
+      reconcileDtsmFilters(
+        { venueIds: [999], organizerIds: [998], categoryIds: [997] },
+        {
+          defaultVenueIds: [...dtsmDefaultVenueIds],
+          venues: [],
+          organizers: [],
+          categories: []
+        }
+      )
+    ).toEqual({ venueIds: [999], organizerIds: [998], categoryIds: [997] })
   })
 
   it('derives a reconciled explorer state whenever discovery is available', () => {
@@ -271,7 +306,12 @@ describe('explorer filters and persistence', () => {
     expect(selectionSummary(null, options.venues, 'places')).toBe('All places')
     expect(selectionSummary([], options.venues, 'places')).toBe('No places')
     expect(
-      selectionSummary([...dtsmDefaultVenueIds], options.venues, 'places', true)
+      selectionSummary(
+        [...dtsmDefaultVenueIds],
+        options.venues,
+        'places',
+        dtsmDefaultVenueIds
+      )
     ).toBe('B Street + Central Park')
     expect(selectionSummary([9000], options.venues, 'places')).toBe('Other')
     expect(selectionSummary([9999], options.venues, 'places')).toBe(

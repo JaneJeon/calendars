@@ -13,26 +13,32 @@ afterEach(() => {
 })
 
 describe('fetchResets', () => {
+  const reset = (id: string) => ({
+    id,
+    reset_type: 'regular',
+    announced_at: '2026-09-12T12:00:00Z'
+  })
+
   it('follows cursor pagination and preserves every result', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         jsonResponse({
-          data: [{ id: 'first' }],
+          data: [reset('first')],
           pagination: { has_more: true, next_cursor: 'page-2' }
         })
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          data: [{ id: 'second' }],
+          data: [reset('second')],
           pagination: { has_more: false, next_cursor: null }
         })
       )
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(fetchResets('https://upstream.test')).resolves.toEqual([
-      { id: 'first' },
-      { id: 'second' }
+      reset('first'),
+      reset('second')
     ])
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -47,14 +53,14 @@ describe('fetchResets', () => {
   it('stops when the upstream claims more pages without providing a cursor', async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({
-        data: [{ id: 'only' }],
+        data: [reset('only')],
         pagination: { has_more: true, next_cursor: null }
       })
     )
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(fetchResets('https://upstream.test')).resolves.toEqual([
-      { id: 'only' }
+      reset('only')
     ])
     expect(fetchMock).toHaveBeenCalledOnce()
   })
@@ -64,7 +70,7 @@ describe('fetchResets', () => {
     const fetchMock = vi.fn(async () => {
       page += 1
       return jsonResponse({
-        data: [{ id: `reset-${page}` }],
+        data: [reset(`reset-${page}`)],
         pagination: { has_more: true, next_cursor: `page-${page + 1}` }
       })
     })
@@ -92,6 +98,29 @@ describe('fetchResets', () => {
       status: 429,
       retryAfter: '45'
     } satisfies Partial<UpstreamError>)
+  })
+
+  it('rejects malformed history and unknown reset types', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ data: 'not-an-array' }))
+      .mockResolvedValueOnce(
+        jsonResponse({ data: [{ ...reset('new-kind'), reset_type: 'full' }] })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: [reset('bad-pagination')], pagination: 42 })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchResets('https://upstream.test')).rejects.toThrow(
+      'resets returned invalid data'
+    )
+    await expect(fetchResets('https://upstream.test')).rejects.toThrow(
+      'resets returned invalid data'
+    )
+    await expect(fetchResets('https://upstream.test')).rejects.toThrow(
+      'resets returned invalid data'
+    )
   })
 })
 

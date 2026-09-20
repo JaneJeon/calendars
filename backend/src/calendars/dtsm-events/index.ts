@@ -56,13 +56,13 @@ export async function syncCatalog(db: D1Database, now: Date): Promise<void> {
   const ongoingStart = await readOngoingStart(db, currentLocal)
   const today = currentLocal.slice(0, 10)
 
+  let sourceEvents
   try {
-    const sourceEvents = await fetchEvents({
+    sourceEvents = await fetchEvents({
       startDate: ongoingStart?.slice(0, 10) ?? today
     })
     if (sourceEvents.length === 0)
       throw new UpstreamError('DTSM events returned an empty snapshot')
-    await persistSnapshot(db, sourceEvents, nowSeconds, currentLocal)
   } catch (error: unknown) {
     await recordFailure(db, nowSeconds, state.last_success_at !== null)
     if (state.last_success_at !== null) {
@@ -73,23 +73,22 @@ export async function syncCatalog(db: D1Database, now: Date): Promise<void> {
       ? error
       : new UpstreamError('DTSM events refresh failed')
   }
+
+  // A D1 write failure is an application/storage failure, not a source
+  // outage. Do not advance the source retry backoff or erase its diagnostics.
+  await persistSnapshot(db, sourceEvents, nowSeconds, currentLocal)
 }
 
 export async function buildDtsmFilterOptions(env: Env) {
-  try {
-    await syncCatalog(env.CALENDAR_DB, new Date())
-    const options = await readFilterOptions(env.CALENDAR_DB)
-    const decoded = (values: typeof options.venues) =>
-      values.map(value => ({ ...value, name: decodeEntities(value.name) }))
-    return {
-      defaultVenueIds: [...DEFAULT_DTSM_VENUE_IDS],
-      venues: decoded(options.venues),
-      organizers: decoded(options.organizers),
-      categories: decoded(options.categories)
-    }
-  } catch (error: unknown) {
-    if (error instanceof UpstreamError) throw error
-    throw new UpstreamError('DTSM database unavailable')
+  await syncCatalog(env.CALENDAR_DB, new Date())
+  const options = await readFilterOptions(env.CALENDAR_DB)
+  const decoded = (values: typeof options.venues) =>
+    values.map(value => ({ ...value, name: decodeEntities(value.name) }))
+  return {
+    defaultVenueIds: [...DEFAULT_DTSM_VENUE_IDS],
+    venues: decoded(options.venues),
+    organizers: decoded(options.organizers),
+    categories: decoded(options.categories)
   }
 }
 
@@ -110,6 +109,7 @@ export default {
       return buildEvents(await readEvents(env.CALENDAR_DB, filter))
     } catch (error: unknown) {
       if (error instanceof UpstreamError) throw error
+      console.error('DTSM database read failed', error)
       throw new UpstreamError('DTSM database unavailable')
     }
   }

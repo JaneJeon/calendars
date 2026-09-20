@@ -78,6 +78,9 @@ https://cal.janejeon.dev/codex-resets.ics?types=scheduled,forecast
 Accepted values are `regular`, `banked`, `scheduled`, and `forecast`.
 Omission—or all four values—uses the stable base feed. Canonical custom
 variants are retained for outage fallback and expire after 30 inactive days.
+A valid custom selection with no current events is served as an empty calendar
+and cached for normal freshness, but it is never served as a stale outage
+fallback.
 
 See the [DTSM request-flow guide](backend/src/calendars/dtsm-events/README.md)
 for the URL-to-cache-to-D1 walk, filter semantics, and effective SQL.

@@ -5,8 +5,14 @@ import {
 } from '@janejeon/calendars-shared'
 import { InvalidRequestError } from '@/errors.js'
 import type { CalendarEvent } from '@/lib/ics.js'
+import {
+  CUSTOM_RESPONSE_CACHE_RETENTION_SECONDS,
+  customResponseCacheExpirationTtl,
+  hashedResponseCacheKey
+} from '@/lib/cache-identity.js'
 
-export const CUSTOM_CODEX_CACHE_RETENTION_SECONDS = 30 * 24 * 60 * 60
+export const CUSTOM_CODEX_CACHE_RETENTION_SECONDS =
+  CUSTOM_RESPONSE_CACHE_RETENTION_SECONDS
 
 export interface ParsedCodexResetFilter {
   types: CodexResetType[]
@@ -59,23 +65,11 @@ export function filterCodexResetEvents(
   })
 }
 
-function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)]
-    .map(value => value.toString(16).padStart(2, '0'))
-    .join('')
-}
-
 export async function codexResponseCacheKey(request: Request): Promise<string> {
   const { canonicalQuery } = parseCodexResetFilter(
     new URL(request.url).searchParams
   )
-  if (!canonicalQuery) return 'codex-resets.ics'
-
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(canonicalQuery)
-  )
-  return `codex-resets.ics:${hex(digest)}`
+  return hashedResponseCacheKey('codex-resets.ics', canonicalQuery)
 }
 
 export function codexResponseCacheExpirationTtl(
@@ -84,5 +78,15 @@ export function codexResponseCacheExpirationTtl(
   const { canonicalQuery } = parseCodexResetFilter(
     new URL(request.url).searchParams
   )
-  return canonicalQuery ? CUSTOM_CODEX_CACHE_RETENTION_SECONDS : undefined
+  return customResponseCacheExpirationTtl(canonicalQuery)
+}
+
+export function codexResponseFallbackEligible(
+  body: string,
+  request: Request
+): boolean {
+  const { canonicalQuery } = parseCodexResetFilter(
+    new URL(request.url).searchParams
+  )
+  return !canonicalQuery || body.includes('\r\nBEGIN:VEVENT\r\n')
 }

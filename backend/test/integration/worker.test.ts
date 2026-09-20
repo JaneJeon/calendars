@@ -1,4 +1,5 @@
 import { env, exports } from 'cloudflare:workers'
+import ICAL from 'ical.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import resetsFixture from '../fixtures/resets.json'
 import statusEmptyFixture from '../fixtures/status-empty.json'
@@ -88,17 +89,35 @@ describe('the Downtown San Mateo feed', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store')
   })
 
-  it('wraps an unavailable options database as an upstream failure', async () => {
+  it('logs an unavailable options database as an internal failure', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await env.CALENDAR_DB.prepare(
       "DELETE FROM dtsm_sync_state WHERE calendar = 'dtsm-events'"
     ).run()
     const response = await exports.default.fetch(
       'http://example.com/dtsm-events/options.json'
     )
-    expect(response.status).toBe(502)
+    expect(response.status).toBe(500)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(errorSpy).toHaveBeenCalledWith(
+      'DTSM filter options failed',
+      expect.any(Error)
+    )
     await env.CALENDAR_DB.prepare(
       "INSERT INTO dtsm_sync_state (calendar) VALUES ('dtsm-events')"
     ).run()
+  })
+
+  it('rejects query strings on the options identity without synchronizing', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+    const response = await exports.default.fetch(
+      'http://example.com/dtsm-events/options.json?venues=1201'
+    )
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.text()).toContain('do not accept query parameters')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('serves the unrestricted catalog for scope=all', async () => {
@@ -462,7 +481,7 @@ describe('the feed', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const unserializable = {
       ...resetsFixture,
-      data: [{ ...resetsFixture.data[0], reset_type: 42 }]
+      data: [{ ...resetsFixture.data[0], announced_at: 'not-a-date' }]
     }
     mockFetch(async input => {
       const url = String(input)
@@ -579,6 +598,39 @@ describe('the feed', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('caches an empty custom Codex variant without making it a fallback', async () => {
+    mockFetch(async input => {
+      const url = String(input)
+      if (url.includes('/api/v1/resets')) return jsonResponse(resetsFixture)
+      if (url.includes('/api/v1/status'))
+        return jsonResponse(statusEmptyFixture)
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+    const putSpy = vi.spyOn(env.CALENDAR_CACHE, 'put')
+
+    const response = await exports.default.fetch(
+      'http://example.com/codex-resets.ics?types=forecast'
+    )
+    const component = new ICAL.Component(ICAL.parse(await response.text()))
+    expect(response.status).toBe(200)
+    expect(component.getAllSubcomponents('vevent')).toHaveLength(0)
+    expect(putSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/^codex-resets\.ics:[a-f0-9]{64}$/),
+      expect.any(String),
+      {
+        metadata: { cachedAt: expect.any(Number), fallbackEligible: false },
+        expirationTtl: 30 * 24 * 60 * 60
+      }
+    )
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockClear()
+    const cached = await exports.default.fetch(
+      'http://example.com/codex-resets.ics?types=forecast'
+    )
+    expect(cached.status).toBe(200)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid Codex filters before calling upstream', async () => {
     const fetchMock = vi.fn(async () => jsonResponse(resetsFixture))
     mockFetch(fetchMock)
@@ -650,7 +702,7 @@ describe('the feed', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const unserializable = {
       ...resetsFixture,
-      data: [{ ...resetsFixture.data[0], reset_type: 42 }]
+      data: [{ ...resetsFixture.data[0], announced_at: 'not-a-date' }]
     }
     mockFetch(async input => {
       const url = String(input)

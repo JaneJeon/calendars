@@ -117,13 +117,22 @@ describe.skipIf(!runE2E || !deployedUrl)('deployed feed', () => {
       { headers: { 'User-Agent': 'calendars-smoke-test' } }
     )
     expect(response.status).toBe(200)
-    expect(response.headers.get('Content-Type')).toBe('application/json')
+    expect(response.headers.get('Content-Type')).toBe(
+      'application/json; charset=utf-8'
+    )
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600')
-    await expect(response.json()).resolves.toMatchObject({
+    const options = await response.json<{
+      defaultVenueIds: number[]
+      venues: unknown[]
+      organizers: unknown[]
+      categories: unknown[]
+    }>()
+    expect(options).toMatchObject({
       defaultVenueIds: expect.any(Array),
       venues: expect.any(Array),
       organizers: expect.any(Array),
       categories: expect.any(Array)
     })
+    expect(options.venues.length).toBeGreaterThan(0)
   })
 })

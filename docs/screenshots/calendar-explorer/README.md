@@ -1,10 +1,10 @@
 # Calendar explorer review evidence
 
 These screenshots were captured from the running Vite implementation at
-`http://localhost:5173/?__scenario=busy` after the final code review. They use
-the development fixture only to make busy, long-text, overflow, and responsive
-states deterministic; the fixture still runs through the production parser,
-state model, and components and is compiled out of the production build.
+`http://localhost:5173/?__scenario=busy` as implementation review evidence.
+They use the development fixture only to make busy, long-text, overflow, and
+responsive states deterministic; the fixture still runs through the production
+parser, state model, and components and is compiled out of the production build.
 
 - `desktop-grid.jpg`: 1280 × 900 Grid with all four event-tone families and a
   real busy-day overflow path.

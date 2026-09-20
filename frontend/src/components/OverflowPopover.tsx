@@ -33,6 +33,13 @@ export function OverflowPopover(props: {
     setSelected(null)
     setFocusTarget(selectedKey)
   }
+  const restoreFocus = (element: HTMLElement | null, target: string) => {
+    if (!element || focusTarget !== target) return
+    requestAnimationFrame(() => {
+      if (element.isConnected) element.focus()
+      setFocusTarget(null)
+    })
+  }
   return (
     <Popover.Root
       positioning={{
@@ -95,10 +102,7 @@ export function OverflowPopover(props: {
               <Box px="8px" pb="8px">
                 <Button
                   id={backButtonId}
-                  ref={element => {
-                    if (element && focusTarget === 'back')
-                      requestAnimationFrame(() => element.focus())
-                  }}
+                  ref={element => restoreFocus(element, 'back')}
                   variant="plain"
                   h="auto"
                   mb="12px"
@@ -120,10 +124,7 @@ export function OverflowPopover(props: {
                       'list',
                       false,
                       () => selectEvent(projection),
-                      element => {
-                        if (element && focusTarget === projection.key)
-                          requestAnimationFrame(() => element.focus())
-                      },
+                      element => restoreFocus(element, projection.key),
                       overflowEventButtonId(projection.key)
                     )}
                   </Box>

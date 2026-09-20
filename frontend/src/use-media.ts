@@ -7,7 +7,7 @@ export function mediaMatches(query: string): boolean {
 export function useMedia(query: string): boolean {
   const [matches, setMatches] = useState(() => mediaMatches(query))
   useEffect(() => {
-    /* istanbul ignore next -- Vite only mounts this browser application in a DOM. */
+    /* istanbul ignore next -- the test environment always defines matchMedia. */
     if (typeof matchMedia !== 'function') return
     const media = matchMedia(query)
     const update = () => setMatches(media.matches)

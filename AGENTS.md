@@ -5,13 +5,14 @@ full design rationale and history live on Linear issue JANE-240.
 
 ## What this is
 
-One stateless Cloudflare Worker serving several iCalendar feeds, one per
-path. Feeds are derived from their upstream source and the serialized
+One stateless Cloudflare Worker serving iCalendar feeds plus DTSM filter
+discovery. Feeds are derived from their upstream source and the serialized
 response is retained in Workers KV for outage fallback. There is no cron and
 no secret inside the Worker (the Cloudflare credentials in `.env` are for
 wrangler only). Codex resets is served at `/codex-resets.ics`; Downtown San
-Mateo events is served at `/dtsm-events.ics` and uses D1 for normalized event
-storage. No Telegram or Slack code — those are out of scope by design.
+Mateo events is served at `/dtsm-events.ics`, uses D1 for normalized event
+storage, and exposes discovery at `/dtsm-events/options.json`. No Telegram or
+Slack code — those are out of scope by design.
 
 The repository is an npm workspace orchestrated by Nx. The Worker lives in
 `backend/`, the Vite React application in `frontend/`, and the shared route
@@ -25,8 +26,8 @@ Each calendar lives in `backend/src/calendars/<name>/` and default-exports
 `buildEvents` resolves to `ics` event attributes and throws
 `UpstreamError` (`backend/src/errors.ts`) when its source fails.
 `backend/src/calendars/index.ts` is the registry.
-`backend/src/index.ts` routes an exact path match to its calendar; every other
-path, including `/`, is a 404.
+`backend/src/index.ts` routes the exact discovery path first and exact calendar
+path matches through the registry; every other path, including `/`, is a 404.
 
 To add a calendar: create its folder, export that object, add it to the
 registry, and add tests under `backend/test/unit/calendars/<name>/` and
@@ -50,19 +51,22 @@ responses carry the header. An ordinary GET is a simple CORS request and does
 not need an OPTIONS handler. Do not widen this to `*` merely because the feeds
 are public. Public fetchability and browser embedding are different policies.
 
-Reusable response-cache mechanics live in `backend/src/lib/response-cache.ts` and
-ICS serialization lives in `backend/src/lib/ics.ts`. Every calendar returns event
+Reusable response-cache mechanics live in `backend/src/lib/response-cache.ts`,
+hashed cache identity in `backend/src/lib/cache-identity.ts`, and ICS
+serialization in `backend/src/lib/ics.ts`. Every calendar returns event
 attributes through `buildEvents`; a calendar can declaratively opt the shared
 serialization pipeline into retained-response caching with `responseCache`.
 
-Codex resets also uses the `CALENDAR_CACHE` Workers KV binding. A
-successful serialized response is written under the calendar's stable
-key with a `cachedAt` timestamp. It is served directly while fresher
-than one hour; after that the Worker refreshes upstream synchronously.
-If refresh fails with an `UpstreamError`, the last successful response
-is served indefinitely. KV read and write failures are logged and do not
-replace a valid live response. Cached and fallback responses retain the
-normal 15-minute `Cache-Control` header.
+Codex resets also uses the `CALENDAR_CACHE` Workers KV binding. The base feed is
+written under its stable key; canonical `types=` subsets use SHA-256-derived
+keys. A response is served directly while fresher than one hour; after that the
+Worker refreshes the complete source snapshot synchronously and filters the
+event population. If refresh fails with an `UpstreamError`, the last successful
+response is served. The base fallback is retained indefinitely; custom variants
+expire after 30 inactive days. A valid empty custom response is cached for
+freshness but marked ineligible as an outage fallback. KV failures are logged
+and do not replace a valid live response. Cached and fallback responses retain
+the normal 15-minute `Cache-Control` header.
 
 Downtown San Mateo events uses `CALENDAR_DB` (D1) and the same
 `CALENDAR_CACHE` binding. A request-driven sync runs at most daily. It fetches
@@ -78,6 +82,10 @@ present. Filtered URLs accept comma-separated positive IDs in `venues`,
 `organizers`, and `categories`. IDs within a parameter are ORed; supplied
 parameters are ANDed; omitted parameters are unconstrained. Any query filter
 selects from the full stored catalog, never from a filtered upstream request.
+`scope=all` selects the unrestricted catalog and cannot be combined with an
+entity filter. Discovery returns the configured default IDs and entities
+referenced by at least one non-withdrawn event, with a one-hour public cache;
+it reruns the same catalog-current check but has no KV response fallback.
 Source `image` objects are never normalized or persisted.
 
 DSMA `start_date` and `end_date` are authoritative
@@ -98,9 +106,10 @@ because a Worker runs in front of the zone cache. The cache key is the
 request path and query string plus the Worker version, not the host:
 every deploy starts cold, and all hostnames share one cache. Codex
 resets is cached for 15 minutes. Every DTSM response is cached for one hour,
-while the shared D1 catalog refreshes from DSMA at most daily. The default DTSM
-KV fallback is retained indefinitely. Custom-filter KV variants expire after
-30 inactive days, while regularly polled subscriptions renew them. Sources:
+while the shared D1 catalog refreshes from DSMA at most daily. Base feed KV
+fallbacks are retained indefinitely. Custom-filter variants for both calendars
+expire after 30 inactive days, while regularly polled subscriptions renew them.
+Sources:
 https://developers.cloudflare.com/workers/cache/configuration/ and
 https://developers.cloudflare.com/workers/cache/cache-keys/.
 
@@ -134,7 +143,8 @@ each produces a feed that looks fine and is wrong:
 ## The upstream API
 
 - `GET /api/v1/resets?limit=100&cursor=...` — cursor-paginated history.
-  `reset_type` is exactly `regular` or `banked`; there is no `full`.
+  `reset_type` is exactly `regular` or `banked`; there is no `full`. The Worker
+  validates this at runtime and treats schema drift as an upstream failure.
 - `GET /api/v1/status` — `latest_reset` (ignored; it duplicates the
   newest history entry), `scheduled_reset` (an announcement awaiting
   execution; a passed `scheduled_for` does not imply completion), and
@@ -181,6 +191,15 @@ by UID and drops a
 | `/resets` returns 429                      | 502, `no-store`, `Retry-After` logged, no retry, unless a retained response exists; then serve that response                                  |
 | `/status` fails in any way                 | serve the history-only feed, `console.warn`                                                                                                   |
 | `ics` rejects an event                     | 500, `no-store`, `console.error`                                                                                                              |
+| invalid feed query                         | 400, `no-store`; repeated, empty, unknown, malformed, or contradictory parameters are rejected                                                |
+| empty valid custom `types=` population     | 200 empty calendar, cache for normal freshness, but never serve it as a stale outage fallback                                                 |
+| DTSM options upstream failure              | 502, `no-store`; after a prior sync, serve current D1 discovery                                                                               |
+| DTSM options D1/application failure        | logged 500, `no-store`; discovery has no KV response fallback                                                                                 |
+
+The public Codex `types=` vocabulary is `regular`, `banked`, `scheduled`, and
+`forecast`. The latter two are event categories synthesized from `/status`, not
+additional upstream `reset_type` values. Omission or all four values is the base
+feed; subsets use canonical shared ordering.
 
 ## Domain
 

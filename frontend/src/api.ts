@@ -20,11 +20,50 @@ export class CalendarRequestError extends Error {
 }
 
 async function responseError(response: Response): Promise<never> {
-  const detail = (await response.text()).trim()
+  const contentType = response.headers.get('Content-Type') ?? ''
+  const body = await response.text()
+  const detail = contentType.toLowerCase().startsWith('text/plain')
+    ? body.trim().slice(0, 500)
+    : ''
   throw new CalendarRequestError(
     detail || `Calendar service returned ${response.status}`,
     response.status
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isPositiveId(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
+function isOptionList(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      option =>
+        isRecord(option) &&
+        isPositiveId(option.id) &&
+        typeof option.name === 'string'
+    )
+  )
+}
+
+function parseDtsmOptions(value: unknown): DtsmFilterOptionsResponse {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.defaultVenueIds) ||
+    !value.defaultVenueIds.every(isPositiveId) ||
+    !isOptionList(value.venues) ||
+    !isOptionList(value.organizers) ||
+    !isOptionList(value.categories)
+  )
+    throw new CalendarRequestError(
+      'Calendar service returned invalid filter options'
+    )
+  return value as unknown as DtsmFilterOptionsResponse
 }
 
 export async function fetchDtsmOptions(
@@ -52,7 +91,7 @@ export async function fetchDtsmOptions(
     { signal }
   )
   if (!response.ok) return responseError(response)
-  return (await response.json()) as DtsmFilterOptionsResponse
+  return parseDtsmOptions(await response.json())
 }
 
 export async function fetchCalendar(

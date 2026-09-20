@@ -4,10 +4,16 @@ import {
   dtsmEventScopeValues
 } from '@janejeon/calendars-shared'
 import { InvalidRequestError } from '@/errors.js'
+import {
+  CUSTOM_RESPONSE_CACHE_RETENTION_SECONDS,
+  customResponseCacheExpirationTtl,
+  hashedResponseCacheKey
+} from '@/lib/cache-identity.js'
 import type { EventFilter } from './repository.js'
 
 export const DEFAULT_DTSM_VENUE_IDS = [...dtsmDefaultVenueIds] as const
-export const CUSTOM_DTSM_CACHE_RETENTION_SECONDS = 30 * 24 * 60 * 60
+export const CUSTOM_DTSM_CACHE_RETENTION_SECONDS =
+  CUSTOM_RESPONSE_CACHE_RETENTION_SECONDS
 
 const PARAMETER_ORDER = [
   dtsmEventFilterParams.venues,
@@ -93,23 +99,11 @@ export function parseDtsmEventFilter(
   return { filter, canonicalQuery }
 }
 
-function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)]
-    .map(value => value.toString(16).padStart(2, '0'))
-    .join('')
-}
-
 export async function dtsmResponseCacheKey(request: Request): Promise<string> {
   const { canonicalQuery } = parseDtsmEventFilter(
     new URL(request.url).searchParams
   )
-  if (!canonicalQuery) return 'dtsm-events.ics'
-
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(canonicalQuery)
-  )
-  return `dtsm-events.ics:${hex(digest)}`
+  return hashedResponseCacheKey('dtsm-events.ics', canonicalQuery)
 }
 
 export function dtsmResponseCacheExpirationTtl(
@@ -118,5 +112,5 @@ export function dtsmResponseCacheExpirationTtl(
   const { canonicalQuery } = parseDtsmEventFilter(
     new URL(request.url).searchParams
   )
-  return canonicalQuery ? CUSTOM_DTSM_CACHE_RETENTION_SECONDS : undefined
+  return customResponseCacheExpirationTtl(canonicalQuery)
 }

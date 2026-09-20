@@ -5,6 +5,7 @@ import { fetchResets, fetchStatus, type Status } from './upstream.js'
 import {
   codexResponseCacheExpirationTtl,
   codexResponseCacheKey,
+  codexResponseFallbackEligible,
   filterCodexResetEvents,
   parseCodexResetFilter
 } from './query.js'
@@ -16,7 +17,8 @@ export default {
   responseCache: {
     key: codexResponseCacheKey,
     freshnessSeconds: 60 * 60,
-    expirationTtlSeconds: codexResponseCacheExpirationTtl
+    expirationTtlSeconds: codexResponseCacheExpirationTtl,
+    fallbackEligible: codexResponseFallbackEligible
   },
 
   async buildEvents(_env: Env, request: Request) {
