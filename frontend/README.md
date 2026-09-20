@@ -92,3 +92,8 @@ emitted by the production build. Visual QA covers desktop, 390 px, and 320 px;
 Grid and List; menus and popovers; empty/failure states; keyboard and pointer
 dismissal; focus return; coarse targets; clipping; runtime logs; and computed
 contrast.
+
+The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README.md)
+show the final implementation at desktop, 390 px, and 320 px, including busy
+overflow, event detail, and long filter-menu states. They are browser captures,
+not Figma artifacts.
