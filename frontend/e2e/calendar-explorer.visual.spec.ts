@@ -37,6 +37,17 @@ async function outline(locator: Locator) {
   })
 }
 
+async function normalizePageForPointerScreenshot(page: Page) {
+  await page.mouse.move(0, 0)
+  await page.evaluate(() => {
+    window.scrollTo(0, 0)
+    for (const element of document.querySelectorAll<HTMLElement>(
+      '[data-testid="filter-options-scroll"]'
+    ))
+      element.scrollTop = 0
+  })
+}
+
 async function expectNarrowFilterGeometry(
   page: Page,
   trigger: Locator,
@@ -58,6 +69,7 @@ async function expectNarrowFilterGeometry(
     popover.boundingBox(),
     page.evaluate(() => ({
       width: window.innerWidth,
+      height: window.innerHeight,
       documentWidth: document.documentElement.scrollWidth
     }))
   ])
@@ -66,7 +78,11 @@ async function expectNarrowFilterGeometry(
   expect(Math.abs(popoverBox!.x - triggerBox!.x)).toBeLessThanOrEqual(1)
   expect(Math.abs(popoverBox!.width - triggerBox!.width)).toBeLessThanOrEqual(1)
   expect(popoverBox!.x).toBeGreaterThanOrEqual(0)
+  expect(popoverBox!.y).toBeGreaterThanOrEqual(0)
   expect(popoverBox!.x + popoverBox!.width).toBeLessThanOrEqual(viewport.width)
+  expect(popoverBox!.y + popoverBox!.height).toBeLessThanOrEqual(
+    viewport.height
+  )
   expect(viewport.documentWidth).toBe(viewport.width)
 
   const title = popover.locator('[data-part="title"]')
@@ -78,12 +94,30 @@ async function expectNarrowFilterGeometry(
   expect(titleBox).not.toBeNull()
   expect(closeBox).not.toBeNull()
   expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(closeBox!.x)
-  expect(closeBox!.width).toBeGreaterThanOrEqual(44)
-  expect(closeBox!.height).toBeGreaterThanOrEqual(44)
+  expect(titleBox!.y).toBeGreaterThanOrEqual(popoverBox!.y)
+  expect(closeBox!.y).toBeGreaterThanOrEqual(popoverBox!.y)
+  expect(closeBox!.y + closeBox!.height).toBeLessThanOrEqual(
+    popoverBox!.y + popoverBox!.height
+  )
+  expect(closeBox!.width).toBeGreaterThanOrEqual(43.5)
+  expect(closeBox!.height).toBeGreaterThanOrEqual(43.5)
 
   const scroll = popover.getByTestId('filter-options-scroll')
   const scrollBox = await scroll.boundingBox()
   expect(scrollBox).not.toBeNull()
+  expect(scrollBox!.y).toBeGreaterThanOrEqual(
+    Math.max(titleBox!.y + titleBox!.height, closeBox!.y + closeBox!.height)
+  )
+  expect(scrollBox!.y + scrollBox!.height).toBeLessThanOrEqual(
+    popoverBox!.y + popoverBox!.height
+  )
+  const search = popover.getByRole('textbox')
+  if ((await search.count()) > 0) {
+    const searchBox = await search.boundingBox()
+    expect(searchBox).not.toBeNull()
+    expect(searchBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height)
+    expect(searchBox!.y + searchBox!.height).toBeLessThanOrEqual(scrollBox!.y)
+  }
   const rows = await popover.getByTestId('filter-checkbox-row').all()
   expect(rows.length).toBeGreaterThan(0)
   for (const row of rows) {
@@ -97,6 +131,14 @@ async function expectNarrowFilterGeometry(
     expect(labelBox).not.toBeNull()
     expect(rowBox!.height).toBeGreaterThanOrEqual(44)
     expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(labelBox!.x)
+    expect(controlBox!.y).toBeGreaterThanOrEqual(rowBox!.y)
+    expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(
+      rowBox!.y + rowBox!.height
+    )
+    expect(labelBox!.y).toBeGreaterThanOrEqual(rowBox!.y)
+    expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(
+      rowBox!.y + rowBox!.height
+    )
     expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(
       scrollBox!.x + scrollBox!.width
     )
@@ -162,6 +204,33 @@ test.describe('filter popover visual contract', () => {
       const places = await visibleFilterPopover(page, 'places')
       await expectNarrowFilterGeometry(page, placesTrigger, places)
       await expect(page).toHaveScreenshot(`places-${viewport.width}.png`)
+      await places
+        .getByRole('textbox', { name: 'Search places' })
+        .fill('sutter')
+      await expect(
+        places.getByRole('checkbox', {
+          name: 'Sutter Medical Center San Mateo'
+        })
+      ).toBeVisible()
+      await normalizePageForPointerScreenshot(page)
+      await expect(page).toHaveScreenshot(`places-search-${viewport.width}.png`)
+      await page.keyboard.press('Escape')
+
+      await placesTrigger.click()
+      const partialPlaces = await visibleFilterPopover(page, 'places')
+      await partialPlaces
+        .getByTestId('filter-checkbox-row')
+        .filter({ hasText: 'North B Street' })
+        .click()
+      expect(
+        await partialPlaces
+          .getByRole('checkbox', { name: 'B Street', exact: true })
+          .evaluate(element => (element as HTMLInputElement).indeterminate)
+      ).toBe(true)
+      await normalizePageForPointerScreenshot(page)
+      await expect(page).toHaveScreenshot(
+        `places-partial-${viewport.width}.png`
+      )
       await page.keyboard.press('Escape')
 
       const typeTrigger = page.getByRole('button', { name: 'Type: All types' })
@@ -172,6 +241,7 @@ test.describe('filter popover visual contract', () => {
         .getByTestId('filter-checkbox-row')
         .filter({ hasText: 'Events' })
         .click()
+      await normalizePageForPointerScreenshot(page)
       await expect(page).toHaveScreenshot(`type-selected-${viewport.width}.png`)
       await page.keyboard.press('Escape')
 
@@ -181,14 +251,19 @@ test.describe('filter popover visual contract', () => {
       await organizerTrigger.click()
       const organizer = await visibleFilterPopover(page, 'organizer')
       await expectNarrowFilterGeometry(page, organizerTrigger, organizer)
+      await normalizePageForPointerScreenshot(page)
+      await expect(page).toHaveScreenshot(`organizer-${viewport.width}.png`)
       await organizer
         .getByRole('textbox', { name: 'Search organizers' })
-        .fill('city')
+        .fill('community')
       await expect(
-        organizer.getByRole('checkbox', { name: 'City of San Mateo' })
+        organizer.getByRole('checkbox', {
+          name: 'Bay Area Community Health Advisory Council'
+        })
       ).toBeVisible()
+      await normalizePageForPointerScreenshot(page)
       await expect(page).toHaveScreenshot(
-        `organizer-search-${viewport.width}.png`
+        `organizer-long-${viewport.width}.png`
       )
     })
   }
@@ -204,11 +279,13 @@ test.describe('filter popover visual contract', () => {
     await calendarMenu.click()
     await expect(page).toHaveScreenshot('desktop-calendar-menu.png')
     await page.keyboard.press('Escape')
+    await expect(calendarMenu).toBeFocused()
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
     await addMenu.click()
     await expect(page).toHaveScreenshot('desktop-add-menu.png')
     await page.keyboard.press('Escape')
+    await expect(addMenu).toBeFocused()
 
     const placesTrigger = page.getByRole('button', {
       name: 'Places: B Street + Central Park'
@@ -231,8 +308,17 @@ test.describe('filter popover visual contract', () => {
 
     await page.getByRole('button', { name: '+1 more' }).click()
     await expect(page).toHaveScreenshot('desktop-overflow.png')
-    await page.getByRole('button', { name: /Second Saturday Market/ }).click()
+    await page
+      .getByRole('button', { name: /Walk, Run, Ride to the Moon/ })
+      .click()
     await expect(page).toHaveScreenshot('desktop-overflow-detail.png')
+    await page.getByRole('button', { name: /Back to/ }).click()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('tab', { name: 'List' }).click()
+    await expect(page).toHaveScreenshot('desktop-list.png')
+    await page.getByRole('button', { name: /Yoga in the Park/ }).click()
+    await expect(page).toHaveScreenshot('desktop-list-detail.png')
   })
 
   test('covers narrow List event disclosure', async ({ page }) => {
@@ -240,6 +326,36 @@ test.describe('filter popover visual contract', () => {
     await page.getByRole('tab', { name: 'List' }).click()
     await page.getByRole('button', { name: /Yoga in the Park/ }).click()
     await expect(page).toHaveScreenshot('mobile-list-detail-390.png')
+  })
+
+  test('covers narrow menus and compact Grid at 320px', async ({ page }) => {
+    await openFixture(page, { width: 320, height: 1000 })
+    const calendarMenu = page.getByRole('button', {
+      name: 'Downtown San Mateo events'
+    })
+    await calendarMenu.click()
+    await expect(page).toHaveScreenshot('mobile-calendar-menu-320.png')
+    await page.keyboard.press('Escape')
+    await expect(calendarMenu).toBeFocused()
+
+    const addMenu = page.getByRole('button', { name: 'Add to calendar' })
+    await addMenu.click()
+    await expect(page).toHaveScreenshot('mobile-add-menu-320.png')
+    await page.keyboard.press('Escape')
+    await expect(addMenu).toBeFocused()
+
+    await page.getByRole('tab', { name: 'Grid' }).click()
+    await expect(page).toHaveScreenshot('mobile-compact-grid-320.png')
+    await page
+      .getByRole('button', {
+        name: /Saturday, September 12, 2026, 4 events\. Show in List\./
+      })
+      .click()
+    await expect(page.getByRole('tab', { name: 'List' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    await expect(page).toHaveScreenshot('mobile-grid-to-list-320.png')
   })
 
   test('@deployed verifies the live 320px Type geometry', async ({ page }) => {
@@ -254,6 +370,27 @@ test.describe('filter popover visual contract', () => {
     const allTypesRow = popover
       .getByTestId('filter-checkbox-row')
       .filter({ hasText: 'All types' })
+    const pointerControl = allTypesRow.locator('[data-part="control"]')
     expect((await outline(allTypesRow)).style).toBe('none')
+    expect((await outline(pointerControl)).style).toBe('none')
+    await page.keyboard.press('Escape')
+    await expect(popover).toBeHidden()
+    await expect(trigger).toBeFocused()
+
+    await trigger.press('Enter')
+    const keyboardPopover = await visibleFilterPopover(page, 'type')
+    const keyboardRow = keyboardPopover
+      .getByTestId('filter-checkbox-row')
+      .filter({ hasText: 'All types' })
+    const keyboardControl = keyboardRow.locator('[data-part="control"]')
+    expect((await outline(keyboardRow)).style).toBe('none')
+    const keyboardOutline = await outline(keyboardControl)
+    expect(keyboardOutline.style).not.toBe('none')
+    expect(keyboardOutline.width).toBeGreaterThanOrEqual(2)
+    await keyboardPopover
+      .getByRole('button', { name: 'Close type filters' })
+      .click()
+    await expect(keyboardPopover).toBeHidden()
+    await expect(trigger).toBeFocused()
   })
 })

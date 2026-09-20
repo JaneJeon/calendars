@@ -37,6 +37,9 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
 
     steps:
       - uses: actions/checkout@v4
@@ -64,17 +67,6 @@ jobs:
           else
             echo "frontend=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Cache Playwright browsers
-        if: steps.affected.outputs.frontend == 'true'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.affected.outputs.frontend == 'true'
-        run: npx playwright install --with-deps chromium webkit
 
       - name: Run browser contract
         if: steps.affected.outputs.frontend == 'true'

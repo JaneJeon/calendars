@@ -118,6 +118,17 @@ alignment, viewport containment, 44 px targets, control/label overlap, pointer
 versus keyboard focus, dismissal, and focus return. Update snapshots only for
 an intentional reviewed change with `npm run test:browser:update`.
 
+Install the local browser binaries once with:
+
+```sh
+npx playwright install chromium webkit
+```
+
+`npm run test:browser:update` regenerates the current platform's snapshots.
+`npm run test:browser:update:linux` uses the pinned official Playwright Docker
+image to regenerate the Linux baselines used by CI without replacing the
+host's `node_modules`. CI runs the browser job inside that same pinned image.
+
 The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README.md)
 show the final implementation at desktop, 390 px, and 320 px, including busy
 overflow, event detail, and long filter-menu states. They are browser captures,

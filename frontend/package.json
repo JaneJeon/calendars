@@ -9,6 +9,7 @@
     "test:coverage": "vitest run --coverage",
     "test:browser": "playwright test",
     "test:browser:update": "playwright test --update-snapshots",
+    "test:browser:update:linux": "bash scripts/update-browser-snapshots-linux.sh",
     "lint": "run-s lint:*",
     "lint:eslint": "eslint .",
     "lint:oxlint": "oxlint",
