@@ -51,12 +51,20 @@ function CalendarMenu(props: {
           justifyContent="flex-start"
           textAlign="left"
           whiteSpace="normal"
+          maxW="100%"
           _hover={{ color: 'calendar.link' }}
           _open={{ color: 'calendar.link' }}
           _focusVisible={focusRing}
         >
-          <span>{feeds[props.feed].name}</span>
-          <ChevronDown size={18} color="#91B8FF" aria-hidden="true" />
+          <Text as="span" minW="0" truncate>
+            {feeds[props.feed].name}
+          </Text>
+          <ChevronDown
+            size={18}
+            color="#91B8FF"
+            aria-hidden="true"
+            style={{ flexShrink: 0 }}
+          />
         </Button>
       </Menu.Trigger>
       <Portal>

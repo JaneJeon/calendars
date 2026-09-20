@@ -102,16 +102,20 @@ function parseDtsmOptions(value: unknown): ResolvedDtsmFilterOptionsResponse {
       'Calendar service returned invalid filter options'
     )
   const response = value as unknown as DtsmFilterOptionsResponse
+  const suppliedModel = response.filterModel
   if (
-    response.filterModel !== undefined &&
-    !isFilterModel(response.filterModel)
+    isRecord(suppliedModel) &&
+    suppliedModel.version === 1 &&
+    !isFilterModel(suppliedModel)
   )
     throw new CalendarRequestError(
       'Calendar service returned invalid filter options'
     )
   return {
     ...response,
-    filterModel: response.filterModel ?? buildDtsmFilterModel(response)
+    filterModel: isFilterModel(suppliedModel)
+      ? suppliedModel
+      : buildDtsmFilterModel(response)
   }
 }
 

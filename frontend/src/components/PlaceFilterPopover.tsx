@@ -23,7 +23,11 @@ import {
 } from '../filters'
 import { controlProps, focusRing } from '../theme'
 import { FilterCheckboxRow } from './FilterPopover'
-import { matchesFilter, visualFilterPanel } from './filter-utils'
+import {
+  matchesFilter,
+  visualFilterPanel,
+  visualFilterSearch
+} from './filter-utils'
 
 export function PlaceFilterPopover(props: {
   selection: IdSelection
@@ -32,9 +36,9 @@ export function PlaceFilterPopover(props: {
   defaultIds: readonly number[]
   onChange: (selection: IdSelection) => void
 }) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => visualFilterSearch('places'))
   const searchRef = useRef<HTMLInputElement>(null)
-  const forcedOpen = visualFilterPanel('places')
+  const fixtureOpen = visualFilterPanel('places')
   const allIds = [
     ...props.model.placeGroups.flatMap(group => group.ids),
     ...props.model.places.map(place => place.id)
@@ -70,7 +74,7 @@ export function PlaceFilterPopover(props: {
 
   return (
     <Popover.Root
-      open={forcedOpen || undefined}
+      defaultOpen={fixtureOpen}
       positioning={{ placement: 'bottom-start', gutter: 7 }}
       initialFocusEl={() => searchRef.current}
       onOpenChange={({ open }) => !open && setQuery('')}
@@ -90,8 +94,8 @@ export function PlaceFilterPopover(props: {
       <Portal>
         <Popover.Positioner>
           <Popover.Content
-            minW="300px"
-            maxW="min(410px, calc(100vw - 28px))"
+            w="min(410px, calc(100vw - 28px))"
+            minW="0"
             p="6px"
             borderWidth="1px"
             borderColor="calendar.controlBorder"
@@ -109,6 +113,8 @@ export function PlaceFilterPopover(props: {
                 <CloseButton
                   aria-label="Close place filters"
                   size="sm"
+                  minW="touchTarget"
+                  minH="touchTarget"
                   color="calendar.muted"
                   _focusVisible={focusRing}
                 />

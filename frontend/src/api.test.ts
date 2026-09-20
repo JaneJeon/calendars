@@ -111,13 +111,27 @@ describe('calendar API client', () => {
           venues: [],
           organizers: [],
           categories: [],
-          filterModel: { version: 2 }
+          filterModel: { version: 1 }
         })
       )
     )
     await expect(fetchDtsmOptions(undefined, invalidModel)).rejects.toThrow(
       'invalid filter options'
     )
+    const futureModel = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          defaultVenueIds: [1201],
+          venues: [{ id: 1201, name: 'North B Street' }],
+          organizers: [],
+          categories: [],
+          filterModel: { version: 2, future: true }
+        })
+      )
+    )
+    await expect(
+      fetchDtsmOptions(undefined, futureModel)
+    ).resolves.toMatchObject({ filterModel: { version: 1 } })
 
     const html = vi
       .fn<typeof fetch>()

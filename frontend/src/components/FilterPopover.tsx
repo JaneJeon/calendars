@@ -23,7 +23,11 @@ import {
   type IdSelection
 } from '../filters'
 import { controlProps, focusRing } from '../theme'
-import { matchesFilter, visualFilterPanel } from './filter-utils'
+import {
+  matchesFilter,
+  visualFilterPanel,
+  visualFilterSearch
+} from './filter-utils'
 
 export function FilterCheckboxRow({
   checked,
@@ -73,14 +77,20 @@ export function FilterPopover(props: {
   searchable?: boolean
   onChange: (selection: IdSelection) => void
 }) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() =>
+    visualFilterSearch(props.label.toLocaleLowerCase())
+  )
   const searchRef = useRef<HTMLInputElement>(null)
   const allRef = useRef<HTMLInputElement>(null)
   const choices = props.choices.filter(choice =>
     matchesFilter(choice.name, query)
   )
   const allIds = props.choices.flatMap(choice => choice.ids)
-  const forcedOpen = visualFilterPanel(props.label.toLocaleLowerCase())
+  const visibleSelection =
+    props.selection === null
+      ? null
+      : props.selection.filter(id => allIds.includes(id))
+  const fixtureOpen = visualFilterPanel(props.label.toLocaleLowerCase())
   const summary = selectionSummary(
     props.selection,
     props.rawOptions,
@@ -90,7 +100,7 @@ export function FilterPopover(props: {
   )
   return (
     <Popover.Root
-      open={forcedOpen || undefined}
+      defaultOpen={fixtureOpen}
       positioning={{ placement: 'bottom-start', gutter: 7 }}
       initialFocusEl={() =>
         props.searchable ? searchRef.current : allRef.current
@@ -131,6 +141,8 @@ export function FilterPopover(props: {
                 <CloseButton
                   aria-label={`Close ${props.label.toLocaleLowerCase()} filters`}
                   size="sm"
+                  minW="touchTarget"
+                  minH="touchTarget"
                   color="calendar.muted"
                   _focusVisible={focusRing}
                 />
@@ -177,7 +189,7 @@ export function FilterPopover(props: {
                   label={choice.name}
                   onChange={checked =>
                     props.onChange(
-                      toggleIds(props.selection, choice.ids, checked, allIds)
+                      toggleIds(visibleSelection, choice.ids, checked, allIds)
                     )
                   }
                 />

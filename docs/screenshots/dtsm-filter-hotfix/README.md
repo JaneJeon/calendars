@@ -12,11 +12,17 @@ West 2026, Promotion, and Promotions.
   the yearly Head West series tag is not presented as a peer event type.
 - `desktop-organizers.png`: 1280 × 900, accurately labeled, searchable
   organizers with decoded source names.
-- `mobile-places-320.png`: 320 × 700, the expanded mobile filter disclosure and
+- `desktop-places-partial.png`: 1280 × 900, one B Street child cleared so the
+  parent visibly renders its indeterminate state.
+- `desktop-places-search.png`: 1280 × 900, a real place search narrowed to
+  Sutter Medical Center.
+- `mobile-places-320.png`: 320 × 1000, the expanded mobile filter disclosure and
   nested Places popover without horizontal overflow.
 
 Browser interaction QA measured every sampled checkbox row at 44 CSS pixels,
 found zero checkbox-control/label overlap at desktop and 320 px, verified the B
 Street parent’s indeterminate state after changing one child, and observed no
-runtime warning or error logs. These are implementation captures, not Figma
-artifacts.
+runtime warning or error logs. The raw measurements, popover and scroll-region
+rectangles, search result, dismissal/focus outcomes, and exact canonical
+subscription URLs are checked in as `interaction-evidence.json`. These are
+implementation captures, not Figma artifacts.

@@ -522,7 +522,9 @@ describe('Calendar explorer', () => {
       })
     )
     const user = userEvent.setup()
-    await renderScenario()
+    window.history.replaceState({}, '', '/?__scenario=busy')
+    renderApp()
+    await screen.findByRole('button', { name: /Second Saturday Market/ })
     await user.click(screen.getByRole('button', { name: 'Type: Events' }))
     const events = await screen.findByRole('checkbox', { name: 'Events' })
     expect(events.closest('[data-scope="checkbox"]')).toHaveAttribute(
@@ -534,6 +536,70 @@ describe('Calendar explorer', () => {
     expect(localStorage.getItem('calendar-explorer:v1')).toContain(
       '"categoryIds":[15,25]'
     )
+  })
+
+  it('drops hidden series IDs on the first explicit semantic type change', async () => {
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({
+        filters: {
+          dtsm: {
+            venueIds: [1201, 1249, 1260, 1328, 3999, 1137],
+            organizerIds: null,
+            categoryIds: [24]
+          }
+        }
+      })
+    )
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/?__scenario=busy')
+    renderApp()
+    await screen.findByRole('button', { name: /Second Saturday Market/ })
+    await user.click(
+      screen.getByRole('button', { name: 'Type: Head West 2026' })
+    )
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Promotions' })
+    )
+    expect(localStorage.getItem('calendar-explorer:v1')).toContain(
+      '"categoryIds":[14,26]'
+    )
+    expect(localStorage.getItem('calendar-explorer:v1')).not.toContain(
+      '"categoryIds":[14,24,26]'
+    )
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+    expect(screen.getByText('Apple Calendar').closest('a')).toHaveAttribute(
+      'href',
+      'webcal://localhost:8787/dtsm-events.ics?venues=1137%2C1201%2C1249%2C1260%2C1328%2C3999&categories=14%2C26'
+    )
+  })
+
+  it('dismisses an initially open place filter with Close and outside interaction', async () => {
+    window.history.replaceState({}, '', '/?__scenario=busy&__panel=places')
+    const user = userEvent.setup()
+    renderApp()
+    await screen.findByRole('checkbox', { name: 'All places' })
+    const trigger = screen.getByRole('button', {
+      name: 'Places: B Street + Central Park'
+    })
+    await user.click(screen.getByRole('button', { name: 'Close place filters' }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: 'All places' })
+      ).not.toBeInTheDocument()
+    )
+    expect(trigger).toHaveFocus()
+
+    await user.click(trigger)
+    await screen.findByRole('checkbox', { name: 'All places' })
+    await user.click(screen.getByRole('heading', { level: 2 }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: 'All places' })
+      ).not.toBeInTheDocument()
+    )
+    expect(trigger).toHaveFocus()
   })
 
   it('shows compact grid overflow', async () => {
