@@ -5,12 +5,18 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      environment: 'node',
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
       include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
       coverage: {
         provider: 'istanbul',
         include: ['src/**/*.{ts,tsx}'],
-        exclude: ['src/main.tsx', 'src/vite-env.d.ts', 'src/**/*.test.*'],
+        exclude: [
+          'src/main.tsx',
+          'src/vite-env.d.ts',
+          'src/test-setup.ts',
+          'src/**/*.test.*'
+        ],
         thresholds: {
           statements: 100,
           branches: 100,

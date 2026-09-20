@@ -2,17 +2,27 @@ import { UpstreamError } from '@/errors.js'
 import { calendarPaths } from '@janejeon/calendars-shared'
 import { buildEvents } from './events.js'
 import { fetchResets, fetchStatus, type Status } from './upstream.js'
+import {
+  codexResponseCacheExpirationTtl,
+  codexResponseCacheKey,
+  codexResponseFallbackEligible,
+  filterCodexResetEvents,
+  parseCodexResetFilter
+} from './query.js'
 
 export default {
   path: calendarPaths.codexResets,
   name: 'Codex Resets',
   cacheTtlSeconds: 15 * 60,
   responseCache: {
-    key: 'codex-resets.ics',
-    freshnessSeconds: 60 * 60
+    key: codexResponseCacheKey,
+    freshnessSeconds: 60 * 60,
+    expirationTtlSeconds: codexResponseCacheExpirationTtl,
+    fallbackEligible: codexResponseFallbackEligible
   },
 
-  async buildEvents() {
+  async buildEvents(_env: Env, request: Request) {
+    const { types } = parseCodexResetFilter(new URL(request.url).searchParams)
     let resets
     try {
       resets = await fetchResets()
@@ -34,6 +44,6 @@ export default {
       console.warn('status fetch failed, serving history-only feed', error)
     }
 
-    return buildEvents(resets, status)
+    return filterCodexResetEvents(buildEvents(resets, status), types)
   }
 }

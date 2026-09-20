@@ -86,6 +86,7 @@ describe('buildCalendarBody', () => {
   })
 
   it('turns an unavailable D1 binding into an upstream error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const calendar = calendars.find(value => value.path === '/dtsm-events.ics')!
     await expect(
       calendar.buildEvents(
@@ -93,5 +94,9 @@ describe('buildCalendarBody', () => {
         new Request('https://example.com/dtsm-events.ics')
       )
     ).rejects.toThrow('DTSM database unavailable')
+    expect(errorSpy).toHaveBeenCalledWith(
+      'DTSM database read failed',
+      expect.any(Error)
+    )
   })
 })

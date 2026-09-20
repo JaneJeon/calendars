@@ -7,12 +7,17 @@ import {
 
 type TestStore = ResponseCacheStore & { put: ReturnType<typeof vi.fn> }
 
-function makeStore(value: string | null, cachedAt: number | null): TestStore {
+function makeStore(
+  value: string | null,
+  cachedAt: number | null,
+  fallbackEligible?: boolean
+): TestStore {
   const getWithMetadata: ResponseCacheStore['getWithMetadata'] = async <
     Metadata
   >() => ({
     value,
-    metadata: cachedAt === null ? null : ({ cachedAt } as Metadata)
+    metadata:
+      cachedAt === null ? null : ({ cachedAt, fallbackEligible } as Metadata)
   })
 
   return {
@@ -120,6 +125,28 @@ describe('withResponseCache', () => {
     )
   })
 
+  it('retains a live response for freshness without making it a fallback', async () => {
+    const store = makeStore(null, null)
+    await expect(
+      withResponseCache({
+        ...options,
+        store,
+        build: async () => 'live but intentionally empty',
+        fallbackEligible: () => false
+      })
+    ).resolves.toBe('live but intentionally empty')
+    expect(store.put).toHaveBeenCalledWith(
+      'feed',
+      'live but intentionally empty',
+      {
+        metadata: {
+          cachedAt: Date.parse('2026-09-11T12:00:00.000Z'),
+          fallbackEligible: false
+        }
+      }
+    )
+  })
+
   it('serves stale data indefinitely when every refresh fails upstream', async () => {
     const store = makeStore('old', Date.now() - 2 * 60 * 60 * 1000)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -139,6 +166,22 @@ describe('withResponseCache', () => {
     expect(store.put).not.toHaveBeenCalled()
     expect(warnSpy).toHaveBeenCalledTimes(2)
     warnSpy.mockRestore()
+  })
+
+  it('never serves a stale response explicitly marked fallback-ineligible', async () => {
+    const store = makeStore(
+      'empty custom response',
+      Date.now() - 2 * 60 * 60 * 1000,
+      false
+    )
+    const build = vi.fn(async () => {
+      throw new UpstreamError('source unavailable')
+    })
+
+    await expect(
+      withResponseCache({ ...options, store, build })
+    ).rejects.toThrow('source unavailable')
+    expect(build).toHaveBeenCalledOnce()
   })
 
   it('rethrows non-upstream source errors instead of serving stale data', async () => {

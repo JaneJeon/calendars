@@ -13,6 +13,7 @@ export interface CalendarDefinition {
     expirationTtlSeconds?:
       | number
       | ((request: Request) => number | undefined | Promise<number | undefined>)
+    fallbackEligible?: (body: string, request: Request) => boolean
   }
   buildEvents(env: Env, request: Request): Promise<CalendarEvent[]>
 }

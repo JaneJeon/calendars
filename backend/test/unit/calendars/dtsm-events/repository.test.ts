@@ -6,6 +6,7 @@ import {
   normalizeSnapshot,
   persistSnapshot,
   readEvents,
+  readFilterOptions,
   readSyncState,
   recordFailure
 } from '@/calendars/dtsm-events/repository.js'
@@ -131,6 +132,35 @@ describe('DTSM normalized repository', () => {
     expect(event!.title).toBe('Changed title')
     expect(event!.organizers).toEqual(['Downtown San Mateo Association'])
     expect(event!.id).toBe(6228)
+  })
+
+  it('discovers only options referenced by non-withdrawn events in canonical order', async () => {
+    await persistSnapshot(db, sourceEvents, 100, '2026-09-11 00:00:00')
+    expect(await readFilterOptions(db)).toEqual({
+      venues: [
+        { id: 9999, name: 'Elsewhere' },
+        { id: 1201, name: 'North B Street' },
+        { id: 1137, name: 'San Mateo Central Park' }
+      ],
+      organizers: [
+        { id: 700, name: 'Downtown San Mateo Association' },
+        { id: 701, name: 'Downtown San Mateo Association' }
+      ],
+      categories: [
+        { id: 81, name: 'Arts &#038; Culture' },
+        { id: 80, name: 'Live Music' }
+      ]
+    })
+
+    await persistSnapshot(db, [], 200, '2026-09-11 00:00:00')
+    expect(await readFilterOptions(db)).toEqual({
+      venues: [{ id: 1201, name: 'North B Street' }],
+      organizers: [
+        { id: 700, name: 'Downtown San Mateo Association' },
+        { id: 701, name: 'Downtown San Mateo Association' }
+      ],
+      categories: [{ id: 80, name: 'Live Music' }]
+    })
   })
 
   it('keeps ended history, withdraws missing future events, and restores reappearances', async () => {

@@ -33,6 +33,13 @@ describe('DTSM event query filters', () => {
     })
   })
 
+  it('uses scope=all for an unrestricted full-catalog feed', () => {
+    expect(parse('scope=all')).toEqual({
+      filter: {},
+      canonicalQuery: 'scope=all'
+    })
+  })
+
   it.each([
     ['unknown parameter', 'venue=1201'],
     ['empty list', 'venues='],
@@ -43,7 +50,10 @@ describe('DTSM event query filters', () => {
     ['leading zero', 'venues=01201'],
     ['decimal', 'venues=1.5'],
     ['exponent notation', 'venues=1e3'],
-    ['unsafe integer', 'venues=9007199254740992']
+    ['unsafe integer', 'venues=9007199254740992'],
+    ['invalid scope', 'scope=default'],
+    ['repeated scope', 'scope=all&scope=all'],
+    ['scope with entity filter', 'scope=all&venues=1201']
   ])('rejects %s', (_label, query) => {
     expect(() => parse(query)).toThrow(InvalidRequestError)
   })
@@ -70,5 +80,10 @@ describe('DTSM event query filters', () => {
     expect(dtsmResponseCacheExpirationTtl(customRequest)).toBe(
       CUSTOM_DTSM_CACHE_RETENTION_SECONDS
     )
+    expect(
+      dtsmResponseCacheExpirationTtl(
+        new Request('https://example.com/dtsm-events.ics?scope=all')
+      )
+    ).toBe(CUSTOM_DTSM_CACHE_RETENTION_SECONDS)
   })
 })

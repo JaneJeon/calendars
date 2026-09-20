@@ -39,6 +39,9 @@ The feed accepts each of these plural parameters at most once:
 - `organizers`
 - `categories`
 
+It also accepts the singular `scope=all` form for the unrestricted catalog.
+`scope` cannot be repeated or combined with any entity filter.
+
 Each value is a comma-separated list of positive integer source IDs.
 
 ```text
@@ -46,6 +49,7 @@ Each value is a comma-separated list of positive integer source IDs.
 /dtsm-events.ics?venues=5507,4211
 /dtsm-events.ics?organizers=6047
 /dtsm-events.ics?venues=5507,4211&categories=15
+/dtsm-events.ics?scope=all
 ```
 
 No query preserves the original view:
@@ -72,6 +76,13 @@ AND
 A well-formed unknown ID is a valid filter and can produce an empty calendar.
 Unknown parameter names, repeated parameters, empty lists, and invalid IDs
 return HTTP 400 with `Cache-Control: no-store`.
+
+`GET /dtsm-events/options.json` runs the same daily catalog-current check and
+returns the configured default venue IDs plus alphabetized venues, organizers,
+and categories referenced by at least one non-withdrawn stored event. It has an
+independent one-hour public response cache and the same stored-data fallback
+policy for source refreshes as the feed. It has no serialized KV fallback of its
+own, so D1/application failures return a logged 500.
 
 ## Parsing and cache identity
 
@@ -148,8 +159,8 @@ caches the complete calendar.
 
 - [`query.ts`](query.ts): URL validation, normalization, KV identity, and
   custom-variant retention.
-- [`index.ts`](index.ts): response freshness, daily sync gate, lease, fallback,
-  and filter handoff.
+- [`index.ts`](index.ts): shared catalog freshness, daily sync gate, lease,
+  feed/options readers, fallback, and filter handoff.
 - [`repository.ts`](repository.ts): normalized storage and SQL filtering.
 - [`events.ts`](events.ts): stored rows to iCalendar event attributes.
 - [`../../index.ts`](../../index.ts): routing, common serialization, HTTP

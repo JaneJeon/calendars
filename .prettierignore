@@ -1,6 +1,7 @@
 backend/worker-configuration.d.ts
 **/coverage/
 **/dist/
+**/.wrangler/
 
 /.nx/cache
 /.nx/workspace-data

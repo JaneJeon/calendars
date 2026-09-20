@@ -59,6 +59,30 @@ export interface Status {
   active_watch?: ActiveWatch | null
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseResetsResponse(value: unknown): ResetsResponse {
+  if (!isRecord(value) || !Array.isArray(value.data))
+    throw new UpstreamError('resets returned invalid data')
+
+  for (const reset of value.data) {
+    if (
+      !isRecord(reset) ||
+      typeof reset.id !== 'string' ||
+      (reset.reset_type !== 'regular' && reset.reset_type !== 'banked') ||
+      typeof reset.announced_at !== 'string'
+    )
+      throw new UpstreamError('resets returned invalid data')
+  }
+
+  const pagination = value.pagination
+  if (pagination !== undefined && !isRecord(pagination))
+    throw new UpstreamError('resets returned invalid data')
+  return value as unknown as ResetsResponse
+}
+
 export async function fetchResets(
   baseUrl: string = BASE_URL
 ): Promise<Reset[]> {
@@ -84,7 +108,7 @@ export async function fetchResets(
       })
     }
 
-    const body = (await response.json()) as ResetsResponse
+    const body = parseResetsResponse(await response.json())
     results.push(...body.data)
 
     if (!body.pagination?.has_more || !body.pagination?.next_cursor) break
