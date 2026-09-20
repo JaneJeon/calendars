@@ -62,7 +62,14 @@ export function FilterCheckboxRow({
       <Checkbox.Control flexShrink="0" colorPalette="action">
         <Checkbox.Indicator />
       </Checkbox.Control>
-      <Checkbox.Label flex="1">{label}</Checkbox.Label>
+      <Checkbox.Label
+        flex="1"
+        minW="0"
+        whiteSpace="normal"
+        overflowWrap="anywhere"
+      >
+        {label}
+      </Checkbox.Label>
     </Checkbox.Root>
   )
 }

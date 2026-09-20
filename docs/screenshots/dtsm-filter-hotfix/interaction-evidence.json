@@ -26,6 +26,12 @@
     },
     "minimumVisibleCheckboxRowHeight": 44,
     "checkboxLabelOverlapCount": 0,
+    "longLabelContainment": {
+      "maximumLabelRight": 295,
+      "scrollRegionRight": 305,
+      "overflowingLabelCount": 0,
+      "wrappedLabelHeight": 40
+    },
     "closeButton": {
       "left": 253,
       "right": 297,

@@ -583,7 +583,9 @@ describe('Calendar explorer', () => {
     const trigger = screen.getByRole('button', {
       name: 'Places: B Street + Central Park'
     })
-    await user.click(screen.getByRole('button', { name: 'Close place filters' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Close place filters' })
+    )
     await waitFor(() =>
       expect(
         screen.queryByRole('checkbox', { name: 'All places' })
