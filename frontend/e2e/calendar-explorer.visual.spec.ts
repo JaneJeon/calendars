@@ -440,6 +440,21 @@ test.describe('filter popover visual contract', () => {
 
   test('@deployed verifies the live 320px Type geometry', async ({ page }) => {
     test.skip(!process.env.DEPLOYED_FRONTEND_URL)
+    const deployedOrigin = new URL(process.env.DEPLOYED_FRONTEND_URL!).origin
+    if (new URL(deployedOrigin).hostname.endsWith('.workers.dev')) {
+      // The backend allows the production custom-domain origin. Version URLs
+      // expose the exact frontend version but have a different browser origin.
+      await page.route('https://cal.janejeon.dev/**', async route => {
+        const response = await route.fetch()
+        await route.fulfill({
+          response,
+          headers: {
+            ...response.headers(),
+            'access-control-allow-origin': deployedOrigin
+          }
+        })
+      })
+    }
     await page.setViewportSize({ width: 320, height: 1000 })
     await page.goto('/')
     await openMobileFilters(page)

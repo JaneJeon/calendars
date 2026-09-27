@@ -219,15 +219,15 @@ needed to prevent recurrence.
 A checklist of dimensions is insufficient. Coverage is the explicit combination
 of surface, viewport, and state. A screenshot proves only the captured cell.
 
-| Surface | Desktop 1280 | Mobile 390 | Mobile 320 |
-| --- | --- | --- | --- |
-| Calendar menu | Open, Escape/focus | Open, Escape/focus | Open, Escape/focus |
-| Add menu | Open, Escape/focus | Open, Escape/focus | Open, Escape/focus |
-| Places | Default | Default, search, partial | Default, search, partial |
-| Type | Default | Pointer, keyboard focus, changed selection | Pointer, keyboard focus, changed selection, WebKit touch |
-| Organizer | Default | Default, long-label search | Default, long-label search |
-| Grid/overflow/detail | Hidden collection, event detail, Back | — | Compact Grid to List |
-| List/detail | Event detail | Inline detail | Inline detail |
+| Surface              | Desktop 1280                          | Mobile 390                                 | Mobile 320                                               |
+| -------------------- | ------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| Calendar menu        | Open, Escape/focus                    | Open, Escape/focus                         | Open, Escape/focus                                       |
+| Add menu             | Open, Escape/focus                    | Open, Escape/focus                         | Open, Escape/focus                                       |
+| Places               | Default                               | Default, search, partial                   | Default, search, partial                                 |
+| Type                 | Default                               | Pointer, keyboard focus, changed selection | Pointer, keyboard focus, changed selection, WebKit touch |
+| Organizer            | Default                               | Default, long-label search                 | Default, long-label search                               |
+| Grid/overflow/detail | Hidden collection, event detail, Back | —                                          | Compact Grid to List                                     |
+| List/detail          | Event detail                          | Inline detail                              | Inline detail                                            |
 
 `frontend/e2e/calendar-explorer.visual.spec.ts` executes this matrix against
 the real Vite application and deterministic production-shaped fixtures.
@@ -242,7 +242,9 @@ Before completion:
 3. verify the production bundle contains no fixture switches;
 4. give the full replacement set to two fresh reviewers;
 5. fix material findings and replace the evidence;
-6. after merge, run the deployed 320px Type geometry smoke.
+6. after merge, run the 320px Type geometry smoke against the exact deployed
+   Worker Version URL; verify the custom domain separately from a normal
+   browser because its Bot Fight Mode challenges GitHub-hosted runners.
 
 ## Behavioral references
 

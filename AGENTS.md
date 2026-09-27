@@ -261,8 +261,17 @@ targets on every push and PR. On a push to master, affected deployable
 projects run: backend D1 migrations precede the Worker deploy, and the
 frontend deploys its Vite static assets to `cal.janejeon.com`. It then
 waits for the backend feed to return 200 and runs only the `deployed feed`
-e2e block against it. There is no frontend HTTP smoke test. The
-live-upstream block is left out, so an upstream rate limit can't fail a
+e2e block against it. For frontend changes, CI resolves the immutable Version
+URL of the active `calendars-frontend` Worker, waits for that URL, then runs a
+320px browser geometry/focus smoke against the deployed assets. The Worker has
+`workers_dev: false` and `preview_urls: true`: this creates publicly routable
+version-specific `workers.dev` URLs without enabling its stable workers.dev
+route. GitHub-hosted runners receive HTTP 403 from `cal.janejeon.com` because
+its zone has Bot Fight Mode, so the Version URL is necessary for this CI check.
+The browser smoke proxies production backend responses with CORS adjusted for
+the Version URL's origin. It checks the deployed frontend version and live
+discovery, but cannot verify the custom domain's zone rules. The live-upstream
+backend block remains out of deploy, so an upstream rate limit cannot fail a
 deploy that already happened.
 
 Before merging a `backend/src/` change, verify it locally: `npm run dev`, then

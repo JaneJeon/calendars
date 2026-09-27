@@ -130,6 +130,14 @@ npx playwright install chromium webkit
 image to regenerate the Linux baselines used by CI without replacing the
 host's `node_modules`. CI runs the browser job inside that same pinned image.
 
+The post-deploy browser smoke uses the immutable Version URL of the active
+frontend Worker. GitHub-hosted runners receive HTTP 403 from the production
+custom domain's Bot Fight Mode, so the Worker enables version URLs while its
+stable workers.dev route stays disabled. Version URLs are public. The smoke
+checks the exact deployed assets and live discovery, adjusting only the
+backend CORS response for the Version URL's different origin. It does not
+assert that the custom domain's zone settings allow CI traffic.
+
 The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README.md)
 show the final implementation at desktop, 390 px, and 320 px, including busy
 overflow, event detail, and long filter-menu states. They are browser captures,
