@@ -9,7 +9,10 @@ The suite covers the exact combinations that the earlier manual review left
 implicit: surface, viewport, input modality, and selection/search state.
 Chromium exercises desktop, 390px, and 320px. WebKit repeats the critical 320px
 Type pointer, keyboard-focus, and touch states. Darwin and Linux baselines are kept
-separately so local macOS review and Linux CI compare like with like.
+separately so local macOS review and Linux CI compare like with like. Generate
+Linux baselines on an x86_64 host, matching the GitHub runner. The Playwright
+image's arm64 variant renders different pixels; the update script stops on an
+arm64 host instead of silently replacing CI baselines with those pixels.
 
 The images are only half of the contract. The same tests assert trigger/panel
 alignment, viewport containment, document width, header/Close separation,

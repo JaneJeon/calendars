@@ -131,8 +131,12 @@ npx playwright install chromium webkit
 
 `npm run test:browser:update` regenerates the current platform's snapshots.
 `npm run test:browser:update:linux` uses the pinned official Playwright Docker
-image to regenerate the Linux baselines used by CI without replacing the
-host's `node_modules`. CI runs the browser job inside that same pinned image.
+image on an x86_64 host to regenerate the Linux baselines used by CI without
+replacing the host's `node_modules`. The script stops on arm64 because the
+multi-arch image renders different pixels, while x86 emulation cannot run
+Chromium on this Mac. CI runs the browser job inside the pinned image on x86_64.
+When a CI screenshot fails, inspect its uploaded expected, actual, and diff
+images before updating that baseline.
 
 The post-deploy browser smoke uses the immutable Version URL of the active
 frontend Worker. GitHub-hosted runners receive HTTP 403 from the production
