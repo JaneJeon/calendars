@@ -55,6 +55,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Probe production frontend from GitHub runner
+        run: curl -A codex-ci --max-time 20 --no-progress-meter --output /dev/null --write-out 'frontend_probe_http=%{http_code}\n' https://cal.janejeon.com || true
+
       - name: Run browser contract
         run: npm run test:browser
 
