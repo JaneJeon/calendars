@@ -198,17 +198,21 @@ export function CalendarList(props: {
     return result
   }, [props.projections])
   const days = [...groups].sort(([left], [right]) => left.localeCompare(right))
-  const dividerIndex = props.todayKey
+  const firstOnOrAfter = props.todayKey
     ? days.findIndex(([day]) => day >= props.todayKey!)
     : -1
-  const divider = props.todayKey ? (
-    <TodayDivider dateKey={props.todayKey} />
-  ) : null
+  const todayBoundary = props.todayKey
+    ? firstOnOrAfter === -1
+      ? days.length
+      : firstOnOrAfter
+    : null
   return (
     <Stack w="min(900px, calc(100% - 28px))" mx="auto" py="12px" gap="0">
+      {props.todayKey && todayBoundary === 0 && (
+        <ListBoundary dateKey={props.todayKey} placement="start" />
+      )}
       {days.map(([day, events], index) => (
         <Fragment key={day}>
-          {index === dividerIndex && divider}
           <Grid
             id={`calendar-list-day-${day}`}
             gridTemplateColumns={{
@@ -217,8 +221,6 @@ export function CalendarList(props: {
             }}
             gap={{ base: '10px', md: '18px' }}
             py="16px"
-            borderBottomWidth="1px"
-            borderColor="calendar.border"
           >
             <Box pt="3px">
               <Text
@@ -252,22 +254,34 @@ export function CalendarList(props: {
               ))}
             </Stack>
           </Grid>
+          <ListBoundary
+            dateKey={todayBoundary === index + 1 ? props.todayKey : null}
+            placement={index === days.length - 1 ? 'end' : 'between'}
+          />
         </Fragment>
       ))}
-      {dividerIndex === -1 && divider}
     </Stack>
   )
 }
 
-function TodayDivider(props: { dateKey: string }) {
+function ListBoundary(props: {
+  dateKey: string | null
+  placement: 'start' | 'between' | 'end'
+}) {
+  if (!props.dateKey)
+    return <Box h="1px" bg="calendar.border" aria-hidden="true" />
   return (
     <Flex
       id="calendar-today-divider"
       tabIndex={-1}
       aria-label={`Today, ${fullDate(props.dateKey)}`}
       align="center"
-      gap="10px"
-      py="9px"
+      gap="8px"
+      h="21px"
+      mt={props.placement === 'start' ? '0' : '-10px'}
+      mb={props.placement === 'end' ? '0' : '-10px'}
+      position="relative"
+      zIndex="1"
       scrollMarginTop="18px"
       _focusVisible={focusRing}
     >

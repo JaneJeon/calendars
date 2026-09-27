@@ -140,6 +140,10 @@ or emptiness never broadens or erases persisted intent.
   dates when today has no event. It sits at the start or end if all events are
   later or earlier. It is not an event, target, filter, or count item; its thin
   rules are decorative and its date text is available to assistive technology.
+  One List boundary owns every separator. It renders either a plain rule or the
+  Today-labelled rule; event rows draw no separator. Card-to-rule spacing on
+  both sides matches an ordinary boundary, so the cue adds no extra blank row
+  or parallel rule.
   Other months, loading, failure, no-event months, and intentionally empty
   filters have no divider. Past event cards keep their normal appearance.
 - The month toolbar shows `Today · <short month and day>` with the full date and
@@ -230,6 +234,7 @@ needed to prevent recurrence.
 | Invented taxonomy hid production aliases/tags                | Remote D1 was never inspected                                                                                                                | Query production before UI taxonomy                                                                                                           | SQL, Wrangler JSON, grouped IDs                                                                    |
 | Menu indicators crossed option labels                        | Custom padding overwrote reserved anatomy                                                                                                    | Preserve compound geometry                                                                                                                    | Zero control/label overlap                                                                         |
 | Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Playwright screenshots plus trigger/panel, row/control/label, focus-style, and viewport assertions |
+| Today cue doubled List rule and gap (#43)                    | A row and a separate divider each owned part of one date boundary, so their border and spacing decisions had to stay synchronized            | One List boundary renders either the ordinary rule or the Today-labelled rule; event rows render events                                       | One boundary node, no row border, card-to-rule gaps within 2px of ordinary                         |
 
 ## Executable visual denominator
 
@@ -254,9 +259,9 @@ of surface, viewport, and state. A screenshot proves only the captured cell.
 real Vite application and deterministic production-shaped fixtures. The Today
 cells also use a fixed LA clock to assert divider position, visible and
 accessible dates, focus and scroll behavior, target geometry, document width,
-computed contrast, clean runtime logs, and unchanged canonical subscription
-URLs. A date rollover changes the cue and marker without changing the preview
-month or moving the page.
+computed contrast, a single rule with ordinary row spacing, clean runtime logs,
+and unchanged canonical subscription URLs. A date rollover changes the cue and
+marker without changing the preview month or moving the page.
 Playwright snapshots catch composition. DOM rectangle and computed-style
 assertions enforce alignment, containment, target size, overlap, focus, and
 document width. Both are required.

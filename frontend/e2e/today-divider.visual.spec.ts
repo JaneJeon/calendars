@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const noTodayEvent = new Date('2026-09-20T12:00:00-07:00')
 const todayEvent = new Date('2026-09-26T12:00:00-07:00')
@@ -14,12 +14,14 @@ async function openFixture(page: Page, width: number, now: Date) {
 
 async function subscriptionUrl(page: Page) {
   await page.getByRole('button', { name: 'Add to calendar' }).click()
+  const menu = page.getByRole('menu')
   const href = await page
     .getByText('Apple Calendar')
     .locator('xpath=ancestor::a[1]')
     .getAttribute('href')
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('menu')).toBeHidden()
+  await menu.focus()
+  await menu.press('Escape')
+  await expect(menu).toBeHidden()
   return href
 }
 
@@ -65,6 +67,47 @@ async function backgroundColor(page: Page, day: string) {
   )
 }
 
+async function expectBoundaryRhythm(page: Page, divider: Locator) {
+  const row5 = page.locator('#calendar-list-day-2026-09-05')
+  const row12 = page.locator('#calendar-list-day-2026-09-12')
+  const row19 = page.locator('#calendar-list-day-2026-09-19')
+  const row26 = page.locator('#calendar-list-day-2026-09-26')
+  await expect(row5).toHaveCSS('border-bottom-width', '0px')
+  await expect(row19).toHaveCSS('border-bottom-width', '0px')
+  const ordinaryRule = row5.locator('xpath=following-sibling::*[1]')
+  await expect(ordinaryRule).toHaveCSS('height', '1px')
+  expect(
+    await divider.evaluate(element => element.previousElementSibling?.id)
+  ).toBe('calendar-list-day-2026-09-19')
+  const [
+    normalRule,
+    normalBefore,
+    normalAfter,
+    boundaryBefore,
+    boundaryAfter,
+    rule
+  ] = await Promise.all([
+    ordinaryRule.boundingBox(),
+    row5.getByRole('button').first().boundingBox(),
+    row12.getByRole('button').first().boundingBox(),
+    row19.getByRole('button').first().boundingBox(),
+    row26.getByRole('button').first().boundingBox(),
+    divider.locator('[aria-hidden="true"]').first().boundingBox()
+  ])
+  const normalLine = normalRule!.y + normalRule!.height / 2
+  const boundaryLine = rule!.y + rule!.height / 2
+  expect(
+    Math.abs(
+      boundaryLine -
+        (boundaryBefore!.y + boundaryBefore!.height) -
+        (normalLine - (normalBefore!.y + normalBefore!.height))
+    )
+  ).toBeLessThanOrEqual(2)
+  expect(
+    Math.abs(boundaryAfter!.y - boundaryLine - (normalAfter!.y - normalLine))
+  ).toBeLessThanOrEqual(2)
+}
+
 for (const [width, name] of [
   [1280, 'desktop'],
   [390, 'mobile-390'],
@@ -88,6 +131,7 @@ for (const [width, name] of [
       expect(
         await divider.evaluate(element => element.nextElementSibling?.id)
       ).toBe(`calendar-list-day-${nextDay}`)
+      await expectBoundaryRhythm(page, divider)
       const today = page.getByRole('button', { name: /Go to today,/ })
       await expect(today).toBeEnabled()
       await expect(today).toContainText(
@@ -112,6 +156,87 @@ for (const [width, name] of [
   }
 }
 
+for (const [instant, position] of [
+  ['2026-09-01T12:00:00-07:00', 'start'],
+  ['2026-09-30T12:00:00-07:00', 'end']
+] as const) {
+  test(`Today divider at the ${position} stays inside the List`, async ({
+    page
+  }) => {
+    await openFixture(page, 320, new Date(instant))
+    await page.getByRole('tab', { name: 'List' }).click()
+    const divider = page.locator('#calendar-today-divider')
+    const list = page.getByRole('tabpanel', { name: 'List' })
+    const [dividerBox, listBox] = await Promise.all([
+      divider.boundingBox(),
+      list.boundingBox()
+    ])
+    const ordinaryRule = page
+      .locator('#calendar-list-day-2026-09-05')
+      .locator('xpath=following-sibling::*[1]')
+    const [ordinaryRuleBox, dividerRuleBox] = await Promise.all([
+      ordinaryRule.boundingBox(),
+      divider.locator('[aria-hidden="true"]').first().boundingBox()
+    ])
+    const ordinaryLine = ordinaryRuleBox!.y + ordinaryRuleBox!.height / 2
+    const dividerLine = dividerRuleBox!.y + dividerRuleBox!.height / 2
+    expect(dividerBox!.y).toBeGreaterThanOrEqual(listBox!.y)
+    expect(dividerBox!.y + dividerBox!.height).toBeLessThanOrEqual(
+      listBox!.y + listBox!.height
+    )
+    if (position === 'start') {
+      expect(
+        await divider.evaluate(element => element.previousElementSibling)
+      ).toBeNull()
+      const [firstCard, nextCard] = await Promise.all([
+        page
+          .locator('#calendar-list-day-2026-09-05')
+          .getByRole('button')
+          .first()
+          .boundingBox(),
+        page
+          .locator('#calendar-list-day-2026-09-12')
+          .getByRole('button')
+          .first()
+          .boundingBox()
+      ])
+      expect(
+        Math.abs(firstCard!.y - dividerLine - (nextCard!.y - ordinaryLine))
+      ).toBeLessThanOrEqual(2)
+    } else {
+      expect(
+        await divider.evaluate(element => element.nextElementSibling)
+      ).toBeNull()
+      await expect(page.locator('#calendar-list-day-2026-09-26')).toHaveCSS(
+        'border-bottom-width',
+        '0px'
+      )
+      const [lastCard, earlierCard] = await Promise.all([
+        page
+          .locator('#calendar-list-day-2026-09-26')
+          .getByRole('button')
+          .first()
+          .boundingBox(),
+        page
+          .locator('#calendar-list-day-2026-09-05')
+          .getByRole('button')
+          .first()
+          .boundingBox()
+      ])
+      expect(
+        Math.abs(
+          dividerLine -
+            (lastCard!.y + lastCard!.height) -
+            (ordinaryLine - (earlierCard!.y + earlierCard!.height))
+        )
+      ).toBeLessThanOrEqual(2)
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBe(320)
+  })
+}
+
 for (const width of [1280, 390, 320]) {
   test(`Today returns to List and scrolls the boundary into view at ${width}px`, async ({
     page
@@ -133,6 +258,9 @@ for (const width of [1280, 390, 320]) {
     }
     const divider = page.locator('#calendar-today-divider')
     await expect(divider).toBeFocused()
+    await expect(divider).toHaveAccessibleName(
+      'Today, Sunday, September 20, 2026'
+    )
     const box = await divider.boundingBox()
     expect(box!.y).toBeGreaterThanOrEqual(0)
     expect(box!.y + box!.height).toBeLessThanOrEqual(600)

@@ -18,7 +18,8 @@ The executable browser contract in
 `frontend/e2e/today-divider.visual.spec.ts` also captures List with and without
 a today event at 1280, 390, and 320px, plus Grid at 320px, on Darwin and Linux.
 Its DOM and computed-style assertions check divider placement, visible date,
-text contrast, toolbar target height, document width, scroll and visible focus
-after Today, Grid's marker through midnight, runtime errors, and the unchanged
-exact subscription URL. Each screenshot
-shows only its stated viewport and state.
+text contrast, the absence of a second row border, card-to-rule spacing against
+an ordinary date boundary, toolbar target height, document width, scroll and
+visible focus after Today, Grid's marker through midnight, runtime errors, and
+the unchanged exact subscription URL. Each screenshot shows only its stated
+viewport and state.
