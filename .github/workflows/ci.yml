@@ -1,4 +1,4 @@
-name: CI
+name: Verify and deploy calendars
 
 on:
   push:
@@ -12,6 +12,7 @@ env:
 
 jobs:
   test:
+    name: Lint, coverage, and build
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +33,11 @@ jobs:
             echo "BASE_SHA=$(git rev-list --max-parents=0 HEAD)" >> "$GITHUB_ENV"
           fi
 
-      - name: Run affected checks
+      - name: Check affected packages
         run: npx nx affected -t lint,test:coverage,build --base="$BASE_SHA" --head="$HEAD_SHA" --parallel=3
 
   browser:
+    name: Browser visuals and interactions
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
@@ -69,6 +71,7 @@ jobs:
           if-no-files-found: ignore
 
   deploy:
+    name: Deploy and smoke-test feeds and explorer
     needs: [test, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
