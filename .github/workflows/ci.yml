@@ -40,6 +40,8 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
+    env:
+      HUSKY: '0'
 
     steps:
       - uses: actions/checkout@v4
@@ -53,27 +55,11 @@ jobs:
 
       - run: npm ci
 
-      - name: Find affected frontend
-        id: affected
-        run: |
-          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
-            BASE_SHA=$(git rev-list --max-parents=0 HEAD)
-            echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
-          fi
-          affected=$(npx nx show projects --affected --base="$BASE_SHA" --head="$HEAD_SHA" --json)
-          echo "$affected"
-          if [[ "$affected" == *'"frontend"'* ]]; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "frontend=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Run browser contract
-        if: steps.affected.outputs.frontend == 'true'
         run: npm run test:browser
 
       - name: Upload browser diagnostics
-        if: failure() && steps.affected.outputs.frontend == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: browser-contract-${{ github.run_id }}
