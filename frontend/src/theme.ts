@@ -79,6 +79,13 @@ const config = defineConfig({
       }
     },
     semanticTokens: {
+      spacing: {
+        calendar: {
+          // Siblings within a date versus clearance around a date boundary.
+          eventStack: { value: '{spacing.3}' },
+          dateBoundary: { value: '{spacing.4}' }
+        }
+      },
       colors: {
         calendar: {
           canvas: { value: '{colors.civic.canvas}' },

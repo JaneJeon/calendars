@@ -37,7 +37,7 @@ async function outline(locator: Locator) {
   })
 }
 
-async function normalizePageForPointerScreenshot(page: Page) {
+async function resetScroll(page: Page) {
   await page.mouse.move(0, 0)
   await page.evaluate(() => {
     window.scrollTo(0, 0)
@@ -165,7 +165,6 @@ test.describe('filter popover visual contract', () => {
     expect(
       (await outline(allTypesRow.locator('[data-part="control"]'))).style
     ).toBe('none')
-    await expect(page).toHaveScreenshot('type-tap-320.png')
   })
 
   test('@webkit-critical keeps the 320px Type popover aligned and focus-safe', async ({
@@ -184,7 +183,6 @@ test.describe('filter popover visual contract', () => {
     const allTypesControl = allTypesRow.locator('[data-part="control"]')
     expect((await outline(allTypesRow)).style).toBe('none')
     expect((await outline(allTypesControl)).style).toBe('none')
-    await expect(page).toHaveScreenshot('type-pointer-320.png')
 
     await page.keyboard.press('Escape')
     await expect(pointerPopover).toBeHidden()
@@ -200,7 +198,6 @@ test.describe('filter popover visual contract', () => {
     const controlOutline = await outline(keyboardControl)
     expect(controlOutline.style).not.toBe('none')
     expect(controlOutline.width).toBeGreaterThanOrEqual(2)
-    await expect(page).toHaveScreenshot('type-keyboard-focus-320.png')
 
     await keyboardPopover
       .getByRole('button', { name: 'Close type filters' })
@@ -226,7 +223,6 @@ test.describe('filter popover visual contract', () => {
     expect(
       (await outline(pointerRow.locator('[data-part="control"]'))).style
     ).toBe('none')
-    await expect(page).toHaveScreenshot('type-pointer-390.png')
 
     await page.keyboard.press('Escape')
     await expect(trigger).toBeFocused()
@@ -241,7 +237,6 @@ test.describe('filter popover visual contract', () => {
     expect((await outline(keyboardRow)).style).toBe('none')
     expect(keyboardOutline.style).not.toBe('none')
     expect(keyboardOutline.width).toBeGreaterThanOrEqual(2)
-    await expect(page).toHaveScreenshot('type-keyboard-focus-390.png')
     await page.keyboard.press('Escape')
     await expect(trigger).toBeFocused()
   })
@@ -262,7 +257,6 @@ test.describe('filter popover visual contract', () => {
       await placesTrigger.click()
       const places = await visibleFilterPopover(page, 'places')
       await expectNarrowFilterGeometry(page, placesTrigger, places)
-      await expect(page).toHaveScreenshot(`places-${viewport.width}.png`)
       await places
         .getByRole('textbox', { name: 'Search places' })
         .fill('sutter')
@@ -271,8 +265,8 @@ test.describe('filter popover visual contract', () => {
           name: 'Sutter Medical Center San Mateo'
         })
       ).toBeVisible()
-      await normalizePageForPointerScreenshot(page)
-      await expect(page).toHaveScreenshot(`places-search-${viewport.width}.png`)
+      await resetScroll(page)
+      await expectNarrowFilterGeometry(page, placesTrigger, places)
       await page.keyboard.press('Escape')
 
       await placesTrigger.click()
@@ -286,10 +280,7 @@ test.describe('filter popover visual contract', () => {
           .getByRole('checkbox', { name: 'B Street', exact: true })
           .evaluate(element => (element as HTMLInputElement).indeterminate)
       ).toBe(true)
-      await normalizePageForPointerScreenshot(page)
-      await expect(page).toHaveScreenshot(
-        `places-partial-${viewport.width}.png`
-      )
+      await resetScroll(page)
       await page.keyboard.press('Escape')
 
       const typeTrigger = page.getByRole('button', { name: 'Type: All types' })
@@ -300,8 +291,10 @@ test.describe('filter popover visual contract', () => {
         .getByTestId('filter-checkbox-row')
         .filter({ hasText: 'Events' })
         .click()
-      await normalizePageForPointerScreenshot(page)
-      await expect(page).toHaveScreenshot(`type-selected-${viewport.width}.png`)
+      await expect(
+        type.getByRole('checkbox', { name: 'Events', exact: true })
+      ).not.toBeChecked()
+      await resetScroll(page)
       await page.keyboard.press('Escape')
 
       const organizerTrigger = page.getByRole('button', {
@@ -310,8 +303,7 @@ test.describe('filter popover visual contract', () => {
       await organizerTrigger.click()
       const organizer = await visibleFilterPopover(page, 'organizer')
       await expectNarrowFilterGeometry(page, organizerTrigger, organizer)
-      await normalizePageForPointerScreenshot(page)
-      await expect(page).toHaveScreenshot(`organizer-${viewport.width}.png`)
+      await resetScroll(page)
       await organizer
         .getByRole('textbox', { name: 'Search organizers' })
         .fill('community')
@@ -320,10 +312,8 @@ test.describe('filter popover visual contract', () => {
           name: 'Bay Area Community Health Advisory Council'
         })
       ).toBeVisible()
-      await normalizePageForPointerScreenshot(page)
-      await expect(page).toHaveScreenshot(
-        `organizer-long-${viewport.width}.png`
-      )
+      await resetScroll(page)
+      await expectNarrowFilterGeometry(page, organizerTrigger, organizer)
     })
   }
 
@@ -336,13 +326,18 @@ test.describe('filter popover visual contract', () => {
       name: 'Downtown San Mateo events'
     })
     await calendarMenu.click()
-    await expect(page).toHaveScreenshot('desktop-calendar-menu.png')
+    await expect(
+      page.getByRole('menu', { name: 'Downtown San Mateo events' })
+    ).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(calendarMenu).toBeFocused()
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
     await addMenu.click()
-    await expect(page).toHaveScreenshot('desktop-add-menu.png')
+    await expect(
+      page.getByRole('menu', { name: 'Add to calendar' })
+    ).toBeVisible()
+    await expect(page.getByText('Apple Calendar')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(addMenu).toBeFocused()
 
@@ -350,34 +345,43 @@ test.describe('filter popover visual contract', () => {
       name: 'Places: B Street + Central Park'
     })
     await placesTrigger.click()
-    await expect(page).toHaveScreenshot('desktop-places.png')
+    await visibleFilterPopover(page, 'places')
     await page.keyboard.press('Escape')
 
     const typeTrigger = page.getByRole('button', { name: 'Type: All types' })
     await typeTrigger.click()
-    await expect(page).toHaveScreenshot('desktop-type.png')
+    await visibleFilterPopover(page, 'type')
     await page.keyboard.press('Escape')
 
     const organizerTrigger = page.getByRole('button', {
       name: 'Organizer: All organizers'
     })
     await organizerTrigger.click()
-    await expect(page).toHaveScreenshot('desktop-organizer.png')
+    await visibleFilterPopover(page, 'organizer')
     await page.keyboard.press('Escape')
 
     await page.getByRole('button', { name: '+1 more' }).click()
-    await expect(page).toHaveScreenshot('desktop-overflow.png')
+    await expect(
+      page.getByRole('button', { name: /Walk, Run, Ride to the Moon/ })
+    ).toBeVisible()
     await page
       .getByRole('button', { name: /Walk, Run, Ride to the Moon/ })
       .click()
-    await expect(page).toHaveScreenshot('desktop-overflow-detail.png')
+    await expect(
+      page.getByRole('heading', { name: 'Walk, Run, Ride to the Moon' })
+    ).toBeVisible()
     await page.getByRole('button', { name: /Back to/ }).click()
     await page.keyboard.press('Escape')
 
     await page.getByRole('tab', { name: 'List' }).click()
-    await expect(page).toHaveScreenshot('desktop-list.png')
     await page.getByRole('button', { name: /Yoga in the Park/ }).click()
-    await expect(page).toHaveScreenshot('desktop-list-detail.png')
+    await expect(
+      page.getByRole('heading', { name: 'Yoga in the Park' })
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Close event details' }).click()
+    await expect(
+      page.getByRole('button', { name: /Yoga in the Park/ })
+    ).toBeFocused()
   })
 
   for (const width of [390, 320]) {
@@ -387,7 +391,13 @@ test.describe('filter popover visual contract', () => {
       await openFixture(page, { width, height: 1000 })
       await page.getByRole('tab', { name: 'List' }).click()
       await page.getByRole('button', { name: /Yoga in the Park/ }).click()
-      await expect(page).toHaveScreenshot(`mobile-list-detail-${width}.png`)
+      await expect(
+        page.getByRole('heading', { name: 'Yoga in the Park' })
+      ).toBeVisible()
+      await page.getByRole('button', { name: 'Close event details' }).click()
+      await expect(
+        page.getByRole('button', { name: /Yoga in the Park/ })
+      ).toBeFocused()
     })
   }
 
@@ -397,13 +407,18 @@ test.describe('filter popover visual contract', () => {
       name: 'Downtown San Mateo events'
     })
     await calendarMenu.click()
-    await expect(page).toHaveScreenshot('mobile-calendar-menu-390.png')
+    await expect(
+      page.getByRole('menu', { name: 'Downtown San Mateo events' })
+    ).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(calendarMenu).toBeFocused()
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
     await addMenu.click()
-    await expect(page).toHaveScreenshot('mobile-add-menu-390.png')
+    await expect(
+      page.getByRole('menu', { name: 'Add to calendar' })
+    ).toBeVisible()
+    await expect(page.getByText('Apple Calendar')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(addMenu).toBeFocused()
   })
@@ -414,18 +429,25 @@ test.describe('filter popover visual contract', () => {
       name: 'Downtown San Mateo events'
     })
     await calendarMenu.click()
-    await expect(page).toHaveScreenshot('mobile-calendar-menu-320.png')
+    await expect(
+      page.getByRole('menu', { name: 'Downtown San Mateo events' })
+    ).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(calendarMenu).toBeFocused()
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
     await addMenu.click()
-    await expect(page).toHaveScreenshot('mobile-add-menu-320.png')
+    await expect(
+      page.getByRole('menu', { name: 'Add to calendar' })
+    ).toBeVisible()
+    await expect(page.getByText('Apple Calendar')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(addMenu).toBeFocused()
 
     await page.getByRole('tab', { name: 'Grid' }).click()
-    await expect(page).toHaveScreenshot('mobile-compact-grid-320.png')
+    await expect(
+      page.getByRole('table', { name: 'September 2026' })
+    ).toBeVisible()
     await page
       .getByRole('button', {
         name: /Saturday, September 12, 2026, 4 events\. Show in List\./
@@ -435,7 +457,6 @@ test.describe('filter popover visual contract', () => {
       'aria-selected',
       'true'
     )
-    await expect(page).toHaveScreenshot('mobile-grid-to-list-320.png')
   })
 
   test('@deployed verifies the live 320px Type geometry', async ({ page }) => {

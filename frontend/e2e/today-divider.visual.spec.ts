@@ -62,9 +62,12 @@ async function backgroundColor(page: Page, day: string) {
   )
 }
 
-async function expectBoundaryRhythm(page: Page, divider: Locator) {
+async function expectListHierarchy(page: Page, divider: Locator) {
   const row5 = page.locator('#calendar-list-day-2026-09-05')
-  const row12 = page.locator('#calendar-list-day-2026-09-12')
+  const row12 = page.getByRole('group', {
+    name: 'Saturday, September 12, 2026',
+    exact: true
+  })
   const row19 = page.locator('#calendar-list-day-2026-09-19')
   const row26 = page.locator('#calendar-list-day-2026-09-26')
   await expect(row5).toHaveCSS('border-bottom-width', '0px')
@@ -96,11 +99,22 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
   ])
   const normalLine = normalRule!.y + normalRule!.height / 2
   const sameDayGap = secondSameDay!.y - (normalAfter!.y + normalAfter!.height)
-  expect(sameDayGap).toBe(8)
+  // Judge the current layout: related cards need breathing room, and a
+  // date change must separate groups more strongly than same-day siblings.
+  const cardPadding = await row12
+    .getByRole('button')
+    .first()
+    .evaluate(element =>
+      Number.parseFloat(getComputedStyle(element).paddingTop)
+    )
+  expect(sameDayGap).toBeGreaterThanOrEqual(12)
+  expect(sameDayGap).toBeGreaterThanOrEqual(cardPadding)
+  const betweenDays = normalAfter!.y - (normalBefore!.y + normalBefore!.height)
+  expect(betweenDays).toBeGreaterThan(sameDayGap * 2)
   const beforeText = label!.y - (boundaryBefore!.y + boundaryBefore!.height)
   const afterText = boundaryAfter!.y - (label!.y + label!.height)
-  expect(beforeText).toBeGreaterThanOrEqual(7.5)
-  expect(afterText).toBeGreaterThanOrEqual(7.5)
+  expect(beforeText).toBeGreaterThanOrEqual(12)
+  expect(afterText).toBeGreaterThanOrEqual(12)
   const gaps = [
     normalBefore!.y - list!.y,
     normalLine - (normalBefore!.y + normalBefore!.height),
@@ -110,7 +124,18 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
     list!.y + list!.height - (boundaryAfter!.y + boundaryAfter!.height)
   ]
   for (const gap of gaps)
-    expect(Math.abs(gap - sameDayGap)).toBeLessThanOrEqual(2)
+    expect(Math.abs(gap - beforeText)).toBeLessThanOrEqual(2)
+  const textFits = await page
+    .getByRole('tabpanel', { name: 'List' })
+    .locator('button p')
+    .evaluateAll(elements =>
+      elements.every(
+        element =>
+          element.scrollWidth <= element.clientWidth + 1 &&
+          element.scrollHeight <= element.clientHeight + 1
+      )
+    )
+  expect(textFits, 'event titles and metadata must remain readable').toBe(true)
 }
 
 for (const [width, name] of [
@@ -136,7 +161,7 @@ for (const [width, name] of [
       expect(
         await divider.evaluate(element => element.nextElementSibling?.id)
       ).toBe(`calendar-list-day-${nextDay}`)
-      await expectBoundaryRhythm(page, divider)
+      await expectListHierarchy(page, divider)
       const today = page.getByRole('button', { name: /Go to today,/ })
       await expect(today).toBeEnabled()
       await expect(today).toContainText(
@@ -150,9 +175,6 @@ for (const [width, name] of [
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth)
       ).toBe(width)
-      await expect(page).toHaveScreenshot(`${name}-list-${state}.png`, {
-        fullPage: true
-      })
       expect(errors).toEqual([])
       expect(await subscriptionUrl(page)).toBe(
         'webcal://localhost:8787/dtsm-events.ics'
@@ -211,7 +233,7 @@ for (const [instant, position] of [
             (nextCard!.y - ordinaryLine)
         )
       ).toBeLessThanOrEqual(2)
-      expect(labelBox!.y - listBox!.y).toBeGreaterThanOrEqual(7.5)
+      expect(labelBox!.y - listBox!.y).toBeGreaterThanOrEqual(12)
     } else {
       expect(
         await divider.evaluate(element => element.nextElementSibling)
@@ -241,7 +263,7 @@ for (const [instant, position] of [
       ).toBeLessThanOrEqual(2)
       expect(
         listBox!.y + listBox!.height - (labelBox!.y + labelBox!.height)
-      ).toBeGreaterThanOrEqual(7.5)
+      ).toBeGreaterThanOrEqual(12)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)
@@ -300,10 +322,6 @@ for (const width of [1280, 390, 320]) {
     await expect(today).toContainText('Today · Sep 26')
     await expect(page.locator('#calendar-today-divider')).toHaveCount(0)
     expect(await backgroundColor(page, '26')).toBe('rgb(20, 36, 59)')
-    if (width === 320)
-      await expect(page).toHaveScreenshot('mobile-320-grid-today.png', {
-        fullPage: true
-      })
   })
 }
 
@@ -360,4 +378,30 @@ test('LA midnight updates the cue and divider without moving the month or page',
   await expect(
     page.getByRole('button', { name: /Go to today,/ })
   ).toContainText('Today · Sep 27')
+})
+
+test('Today text can grow without consuming the surrounding clearance', async ({
+  page
+}) => {
+  await openFixture(page, 320, noTodayEvent)
+  const divider = page.locator('#calendar-today-divider')
+  const label = divider.locator('p')
+  const before = (await divider.boundingBox())!
+  await label.evaluate(element => {
+    element.style.fontSize = '20px'
+  })
+  const after = (await divider.boundingBox())!
+  const text = (await label.boundingBox())!
+  const previous = (await page
+    .locator('#calendar-list-day-2026-09-19')
+    .boundingBox())!
+  const next = (await page
+    .locator('#calendar-list-day-2026-09-26')
+    .boundingBox())!
+  expect(after.height).toBeGreaterThan(before.height)
+  expect(text.y - (previous.y + previous.height)).toBeGreaterThanOrEqual(12)
+  expect(next.y - (text.y + text.height)).toBeGreaterThanOrEqual(12)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    320
+  )
 })

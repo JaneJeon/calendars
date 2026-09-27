@@ -141,14 +141,24 @@ or emptiness never broadens or erases persisted intent.
   later or earlier. It is not an event, target, filter, or count item; its thin
   rules are decorative and its date text is available to assistive technology.
   One List boundary owns every separator. It renders either a plain rule or the
-  Today-labelled rule; event rows draw no separator. One 8px List vertical rhythm
-  governs the panel edges, row padding, gaps between same-day cards, and
-  distances to ordinary rules. The Today label occupies its text height in the
-  layout, with 8px clearance from the adjacent cards on both sides. Measuring
-  only its rule would miss text crowding. An ordinary rule appears only between
-  date groups, never after the last one.
+  Today-labelled rule; event rows draw no separator. The List is a sequence of
+  date groups and boundaries: `CalendarList` composes `ListDay` and
+  `ListBoundary`, and each date owns a stack of event disclosures.
+  This nesting expresses the reader's task: distinguish events within a day,
+  then distinguish one day from the next.
+
+  `calendar.eventStack` gives same-day events breathing room (spacing scale 3,
+  currently 12px). `calendar.dateBoundary` gives boundaries and panel edges
+  clearance (scale 4, currently 16px). An ordinary boundary therefore separates
+  dates by two clearances plus its rule. The Today boundary takes its natural
+  text height plus those same clearances. The outer Stack owns gap and edge
+  padding; the inner Stack owns event gap. Rows and boundaries need no positional
+  margins, and the label has no fixed height. Card padding uses the same spacing
+  scale. Different semantic relationships may have different distances.
+  An ordinary rule appears only between date groups, never after the last one.
   Other months, loading, failure, no-event months, and intentionally empty
   filters have no divider. Past event cards keep their normal appearance.
+
 - The month toolbar shows `Today · <short month and day>` with the full date and
   action in its accessible name. It scrolls with the page. From another month,
   Today changes only the preview month and, in List with events, focuses and
@@ -200,6 +210,7 @@ root.
 Each row records the earliest wrong layer, the resulting rule, and the evidence
 needed to prevent recurrence.
 
+<!-- prettier-ignore -->
 | Failure                                                      | Cause                                                                                                                                        | Contract produced                                                                                                                             | Required evidence                                                                                  |
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Branding dominated event content                             | Decoration outranked user jobs                                                                                                               | Remove nonessential identity chrome                                                                                                           | First mobile viewport reaches useful controls/events                                               |
@@ -236,51 +247,53 @@ needed to prevent recurrence.
 | Static reviews passed untested interactions                  | Appearance was mistaken for completion                                                                                                       | Interaction QA plus fresh review                                                                                                              | Logs, keyboard, focus, state, geometry                                                             |
 | Invented taxonomy hid production aliases/tags                | Remote D1 was never inspected                                                                                                                | Query production before UI taxonomy                                                                                                           | SQL, Wrangler JSON, grouped IDs                                                                    |
 | Menu indicators crossed option labels                        | Custom padding overwrote reserved anatomy                                                                                                    | Preserve compound geometry                                                                                                                    | Zero control/label overlap                                                                         |
-| Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Playwright screenshots plus trigger/panel, row/control/label, focus-style, and viewport assertions |
-| Today cue doubled rules and broke List rhythm (#43)          | A row and cue split one boundary; 12px outer, 16px row, 7px card, and 10px label values also split one rhythm                                | One boundary owner and one List rhythm; no trailing ordinary rule                                                                             | One rule; compare top, same-day, rule, and bottom gaps within 2px                                  |
-| Today text touched event cards (#43)                         | Measuring rule centers missed the 17px text box; compressing its flow slot erased the clearance                                              | Label occupies its text height with 8px clearance on both sides                                                                               | Browser measures text bounds against adjacent cards at every width and edge                        |
+| Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Trigger/panel, row/control/label, focus-style, and viewport assertions |
+| Today cue duplicated a date boundary (#43) | Row and cue each owned a separator | One owner renders ordinary or labelled boundaries | One rule between dates, no trailing ordinary rule |
+| Equal 8px gaps still felt cramped (#43 follow-up) | Normalization was mistaken for numerical equality; tests encoded the chosen value rather than the reading hierarchy | Model event siblings and date boundaries separately; parent stacks own spacing | Same-day breathing room, stronger between-day separation, natural label height, readable long cards |
+| Screenshot churn dominated review | Every state became a stored image and every image became a review obligation | Choose evidence by the claim it can test | Assertions for behavior/geometry; a small current composition sample for visual judgment |
 
-## Executable visual denominator
+## Verification
 
-A checklist of dimensions is insufficient. Coverage is the explicit combination
-of surface, viewport, and state. A screenshot proves only the captured cell.
+Start with the claim being checked. A correct change preserves an application
+that makes sense on its own. Matching a previous image only proves stability;
+a passing procedure does not establish that the intended product is good.
 
-| Surface              | Desktop 1280                          | Mobile 390                                 | Mobile 320                                               |
-| -------------------- | ------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
-| Calendar menu        | Open, Escape/focus                    | Open, Escape/focus                         | Open, Escape/focus                                       |
-| Add menu             | Open, Escape/focus                    | Open, Escape/focus                         | Open, Escape/focus                                       |
-| Places               | Default                               | Default, search, partial                   | Default, search, partial                                 |
-| Type                 | Default                               | Pointer, keyboard focus, changed selection | Pointer, keyboard focus, changed selection, WebKit touch |
-| Organizer            | Default                               | Default, long-label search                 | Default, long-label search                               |
-| Grid/overflow/detail | Hidden collection, event detail, Back | —                                          | Compact Grid to List                                     |
-| List/detail          | Event detail                          | Inline detail                              | Inline detail                                            |
-| Today in List        | Today event, no event today, action   | Today event, no event today, action        | Today event, no event today, action and focus            |
-| Today in Grid        | Existing day marker and disabled cue  | Existing day marker and disabled cue       | Existing day marker and disabled cue                     |
-| Today transitions    | Other month, pointer action           | Other month, pointer action                | Other month, keyboard/pointer, empty/error, rollover     |
+| Claim                                                 | Executable evidence                                                                                                                                         | Human/agent judgment still needed                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| One date and consistent action meaning                | LA/UTC, month, midnight, selection and focus tests                                                                                                          | Does Today help orientation without dominating events?                        |
+| Events remain readable and dates form distinct groups | Same-day gap ≥ card vertical padding and 12px; between-day separation > twice same-day gap; equal boundary/edge clearance; actual label bounds; no overflow | Is the density comfortable and the hierarchy clear with long and short cards? |
+| Disclosure preserves context                          | Open/close, heading, selection and focus-return checks on desktop and narrow List; Grid overflow and Back                                                   | Does it read as detail of that event?                                         |
+| Filters remain usable                                 | Places/Type/Organizer geometry at 390/320, long/search/partial states; Type pointer/keyboard plus WebKit touch; desktop visibility and dismissal            | Review the affected filter surface when its design changes                    |
+| Subscription matches the population                   | Canonical URL and filtering unit tests; exact browser URL assertions                                                                                        | No screenshot needed                                                          |
 
 `frontend/e2e/calendar-explorer.visual.spec.ts` and
-`frontend/e2e/today-divider.visual.spec.ts` execute this matrix against the
-real Vite application and deterministic production-shaped fixtures. The Today
-cells also use a fixed LA clock to assert divider position, visible and
-accessible dates, focus and scroll behavior, target geometry, document width,
-computed contrast, one List rhythm from the first edge through same-day cards,
-ordinary rules and the Today text box to the final edge, clean runtime logs,
-and unchanged canonical subscription URLs. A date rollover changes the cue and
-marker without changing the preview month or moving the page.
-Playwright snapshots catch composition. DOM rectangle and computed-style
-assertions enforce alignment, containment, target size, overlap, focus, and
-document width. Both are required.
+`frontend/e2e/today-divider.visual.spec.ts` run these checks against the real
+Vite application. Today placement and action checks cover 1280, 390, and 320px,
+plus beginning/end, empty/error, other month, and rollover cases. Unit tests
+cover loading and intentionally empty filters. Tests assert relationships in
+rendered geometry without importing theme values as their expected answer.
 
-Before completion:
+`frontend/e2e/composition.spec.ts` produces four review images: List at 1280,
+390, and 320px, and desktop Grid. These are **review inputs**, not golden-image
+assertions. They live in ignored test output, attached to the Playwright report
+and uploaded by CI on success or failure. Inspect the compositions affected by
+a change. Add a focused temporary capture only when a specific unanswered
+question needs it. Do not multiply captures by every test state or platform,
+commit galleries, or require baseline updates for intended spacing changes.
+Failures retain screenshots, traces, and video for diagnosis.
 
-1. run lint, 100% unit coverage, build, browser contract, and backend e2e;
-2. inspect snapshots at 1280, 390, and 320px;
-3. verify the production bundle contains no fixture switches;
-4. give the full replacement set to two fresh reviewers;
-5. fix material findings and replace the evidence;
-6. after merge, run the 320px Type geometry smoke against the exact deployed
-   Worker Version URL; verify the custom domain separately from a normal
-   browser because its Bot Fight Mode challenges GitHub-hosted runners.
+Before completion, run lint, unit coverage, build, the browser contract, and
+backend e2e. Check the production bundle excludes fixture switches. Review the
+current affected composition independently of the diff, then inspect the diff
+for unintended changes. State what the assertions establish and what visual
+judgment found. A changed model also requires reviewing its test expectations;
+do not carry a mistaken assumption forward just because it is executable.
+
+Fresh review should address a concrete unresolved question. A fixed number of
+reviewers or images is not a completion criterion. After merge, CI runs the
+320px Type geometry smoke against the exact deployed Worker Version URL; the
+custom domain still needs an ordinary browser check because Bot Fight Mode
+challenges GitHub-hosted runners.
 
 ## Behavioral references
 

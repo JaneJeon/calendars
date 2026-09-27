@@ -23,9 +23,6 @@ import { controlProps, eventTone, focusRing } from '../theme'
 import { EventTrigger } from './EventDetails'
 import { OverflowPopover } from './OverflowPopover'
 
-const LIST_RHYTHM_PX = 8
-const TODAY_LABEL_LINE_HEIGHT_PX = 17
-
 export function CalendarGrid(props: {
   month: string
   todayKey: string
@@ -187,13 +184,15 @@ export function CalendarGrid(props: {
   )
 }
 
-export function CalendarList(props: {
+type CalendarListProps = {
   projections: EventProjection[]
   todayKey: string | null
   isNarrow: boolean
   selectedKey: string | null
   setSelectedKey: (key: string | null) => void
-}) {
+}
+
+export function CalendarList(props: CalendarListProps) {
   const groups = useMemo(() => {
     const result = new Map<string, EventProjection[]>()
     for (const item of props.projections)
@@ -210,57 +209,27 @@ export function CalendarList(props: {
       : firstOnOrAfter
     : null
   return (
-    <Stack w="min(900px, calc(100% - 28px))" mx="auto" gap="0">
+    <Stack
+      w="min(900px, calc(100% - 28px))"
+      mx="auto"
+      gap="calendar.dateBoundary"
+      py="calendar.dateBoundary"
+    >
       {props.todayKey && todayBoundary === 0 && (
-        <ListBoundary dateKey={props.todayKey} placement="start" />
+        <ListBoundary dateKey={props.todayKey} />
       )}
       {days.map(([day, events], index) => (
         <Fragment key={day}>
-          <Grid
-            id={`calendar-list-day-${day}`}
-            gridTemplateColumns={{
-              base: '48px minmax(0,1fr)',
-              md: '72px minmax(0,1fr)'
-            }}
-            gap={{ base: '10px', md: '18px' }}
-            py={`${LIST_RHYTHM_PX}px`}
-          >
-            <Box pt="3px">
-              <Text
-                color="calendar.subtle"
-                fontSize="11px"
-                fontWeight="500"
-                textTransform="uppercase"
-              >
-                {shortWeekday(day)}
-              </Text>
-              <Text
-                mt="1px"
-                color="calendar.text"
-                fontSize="24px"
-                fontWeight="500"
-                lineHeight="1"
-              >
-                {Number(day.slice(-2))}
-              </Text>
-            </Box>
-            <Stack gap={`${LIST_RHYTHM_PX}px`}>
-              {events.map(item => (
-                <EventTrigger
-                  key={item.key}
-                  projection={item}
-                  variant="list"
-                  isNarrow={props.isNarrow}
-                  selectedKey={props.selectedKey}
-                  setSelectedKey={props.setSelectedKey}
-                />
-              ))}
-            </Stack>
-          </Grid>
+          <ListDay
+            day={day}
+            events={events}
+            isNarrow={props.isNarrow}
+            selectedKey={props.selectedKey}
+            setSelectedKey={props.setSelectedKey}
+          />
           {(index + 1 < days.length || todayBoundary === index + 1) && (
             <ListBoundary
               dateKey={todayBoundary === index + 1 ? props.todayKey : null}
-              placement={index + 1 === days.length ? 'end' : 'between'}
             />
           )}
         </Fragment>
@@ -269,10 +238,61 @@ export function CalendarList(props: {
   )
 }
 
-function ListBoundary(props: {
-  dateKey: string | null
-  placement: 'start' | 'between' | 'end'
-}) {
+// A date owns its event disclosures and their spacing. Callers supply domain
+// data and selection, never per-row borders, margins, or responsive behavior.
+function ListDay(
+  props: Omit<CalendarListProps, 'projections' | 'todayKey'> & {
+    day: string
+    events: EventProjection[]
+  }
+) {
+  return (
+    <Grid
+      id={`calendar-list-day-${props.day}`}
+      role="group"
+      aria-label={fullDate(props.day)}
+      gridTemplateColumns={{
+        base: '48px minmax(0,1fr)',
+        md: '72px minmax(0,1fr)'
+      }}
+      gap={{ base: '2.5', md: '4.5' }}
+    >
+      <Box pt="3px">
+        <Text
+          color="calendar.subtle"
+          fontSize="11px"
+          fontWeight="500"
+          textTransform="uppercase"
+        >
+          {shortWeekday(props.day)}
+        </Text>
+        <Text
+          mt="1px"
+          color="calendar.text"
+          fontSize="24px"
+          fontWeight="500"
+          lineHeight="1"
+        >
+          {Number(props.day.slice(-2))}
+        </Text>
+      </Box>
+      <Stack gap="calendar.eventStack">
+        {props.events.map(item => (
+          <EventTrigger
+            key={item.key}
+            projection={item}
+            variant="list"
+            isNarrow={props.isNarrow}
+            selectedKey={props.selectedKey}
+            setSelectedKey={props.setSelectedKey}
+          />
+        ))}
+      </Stack>
+    </Grid>
+  )
+}
+
+function ListBoundary(props: { dateKey: string | null }) {
   if (!props.dateKey)
     return <Box h="1px" bg="calendar.border" aria-hidden="true" />
   return (
@@ -281,10 +301,7 @@ function ListBoundary(props: {
       tabIndex={-1}
       aria-label={`Today, ${fullDate(props.dateKey)}`}
       align="center"
-      gap="8px"
-      h={`${TODAY_LABEL_LINE_HEIGHT_PX}px`}
-      mt={props.placement === 'start' ? `${LIST_RHYTHM_PX}px` : '0'}
-      mb={props.placement === 'end' ? `${LIST_RHYTHM_PX}px` : '0'}
+      gap="2"
       position="relative"
       zIndex="1"
       scrollMarginTop="18px"
@@ -293,9 +310,9 @@ function ListBoundary(props: {
       <Box flex="1" h="1px" bg="calendar.border" aria-hidden="true" />
       <Text
         color="calendar.link"
-        fontSize="12px"
+        fontSize="xs"
         fontWeight="500"
-        lineHeight={`${TODAY_LABEL_LINE_HEIGHT_PX}px`}
+        lineHeight="short"
         whiteSpace="nowrap"
       >
         Today · {shortWeekday(props.dateKey)}, {shortDate(props.dateKey)}

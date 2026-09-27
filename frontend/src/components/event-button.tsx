@@ -21,8 +21,8 @@ export function eventButton(
       w="100%"
       h="auto"
       minH={variant === 'list' ? '64px' : 'auto'}
-      px={variant === 'list' ? '12px' : '7px'}
-      py={variant === 'list' ? '9px' : '6px'}
+      px={variant === 'list' ? '3' : '7px'}
+      py={variant === 'list' ? '3' : '6px'}
       borderWidth="1px"
       borderColor={open ? 'calendar.focus' : colors.marker}
       borderLeftWidth={variant === 'list' ? '5px' : '3px'}
