@@ -1,0 +1,32 @@
+{
+  "source": "Playwright Chromium at 320×1000 against local Vite and the production-shaped development fixture",
+  "recordedOn": "2026-09-26",
+  "units": "CSS pixels",
+  "pointer": {
+    "viewport": {
+      "width": 320,
+      "height": 1000,
+      "documentScrollWidth": 320
+    },
+    "trigger": { "x": 28, "y": 438.15625, "width": 264, "height": 44 },
+    "panel": { "x": 28, "y": 489, "width": 264, "height": 215 },
+    "scrollRegion": { "x": 35, "y": 552, "width": 250, "height": 145 },
+    "allTypesRow": { "x": 35, "y": 552, "width": 250, "height": 44 },
+    "checkboxControl": { "x": 45, "y": 564, "width": 20, "height": 20 },
+    "checkboxLabel": { "x": 75, "y": 564, "width": 200, "height": 20 },
+    "close": { "x": 233, "y": 502, "width": 44, "height": 44 },
+    "rowOutline": "rgb(243, 246, 250) none 3px",
+    "controlOutline": "rgb(255, 255, 255) none 3px"
+  },
+  "escapeRestoredTriggerFocus": true,
+  "keyboard": {
+    "rowOutline": "rgb(243, 246, 250) none 3px",
+    "controlOutline": "rgb(145, 184, 255) solid 2px"
+  },
+  "interpretation": {
+    "triggerPanelLeftDifference": 0,
+    "triggerPanelWidthDifference": 0,
+    "checkboxControlLabelOverlap": 0,
+    "note": "Computed outline width can be nonzero while outline-style is none. Only the keyboard control has a painted ring. This is one sampled state; the Playwright suite covers the full matrix."
+  }
+}

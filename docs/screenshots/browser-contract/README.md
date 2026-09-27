@@ -16,5 +16,10 @@ alignment, viewport containment, document width, header/Close separation,
 labels, pointer-open absence of a row outline, keyboard control focus, and
 focus restoration.
 
+`type-320-interaction-evidence.json` preserves one raw 320px Type capture:
+trigger, panel, scroll region, row, checkbox control and label rectangles,
+computed pointer/keyboard outlines, and Escape focus return. It is a reviewable
+sample, while the browser suite enforces the complete matrix on each run.
+
 Update these images only after inspecting the full replacement set and
 confirming that the corresponding product contract change is intentional.
