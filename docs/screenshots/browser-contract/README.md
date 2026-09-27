@@ -13,6 +13,11 @@ separately so local macOS review and Linux CI compare like with like. Generate
 Linux baselines on an x86_64 host, matching the GitHub runner. The Playwright
 image's arm64 variant renders different pixels; the update script stops on an
 arm64 host instead of silently replacing CI baselines with those pixels.
+When a pull request's required browser job fails, a separate CI job regenerates
+x86_64 snapshot candidates and uploads them as an artifact. Inspect the failed
+expected/actual/diff images and the complete candidate set before copying
+intentional changes into this folder. Candidate generation never changes the
+required browser job's failure result.
 
 The images are only half of the contract. The same tests assert trigger/panel
 alignment, viewport containment, document width, header/Close separation,
