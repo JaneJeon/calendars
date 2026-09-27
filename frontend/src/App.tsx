@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Container } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -35,8 +35,17 @@ import {
   type IdSelection
 } from './filters'
 import { mediaMatches, useMedia } from './use-media'
+import { useToday } from './use-today'
+
+function focusToday() {
+  const divider = document.getElementById('calendar-today-divider')
+  divider?.scrollIntoView({ block: 'center' })
+  divider?.focus({ preventScroll: true })
+}
 
 export default function App() {
+  const [initialNow] = useState(() => new Date())
+  const todayKey = useToday(initialNow)
   const isNarrow = useMedia('(max-width: 700px)')
   const compactGrid = useMedia('(max-width: 1150px)')
   const [state, setState] = useState<ExplorerState>(() => {
@@ -44,7 +53,8 @@ export default function App() {
     if (typeof localStorage === 'undefined') return defaultExplorerState(false)
     const restored = readExplorerState(
       localStorage,
-      mediaMatches('(max-width: 700px)')
+      mediaMatches('(max-width: 700px)'),
+      initialNow
     )
     /* istanbul ignore next -- Vite removes this visual-QA branch in production. */
     if (
@@ -74,6 +84,7 @@ export default function App() {
   })
   const [status, setStatus] = useState('')
   const [focusDay, setFocusDay] = useState<string | null>(null)
+  const pendingTodayJump = useRef(false)
 
   useEffect(() => {
     if (!status) return
@@ -106,8 +117,15 @@ export default function App() {
     () => projectionsForMonth(feedQuery.data ?? [], explorer.month),
     [explorer.month, feedQuery.data]
   )
+  const showTodayDivider =
+    explorer.month === todayKey.slice(0, 7) &&
+    explorer.view === 'list' &&
+    feedUrl !== null &&
+    feedQuery.isSuccess &&
+    projections.length > 0
 
   const change = (fn: (current: ExplorerState) => ExplorerState) => {
+    pendingTodayJump.current = false
     setSelectedKey(null)
     const next = fn(explorer)
     setState(next)
@@ -153,6 +171,32 @@ export default function App() {
       setFocusDay(null)
     })
   }, [explorer.view, focusDay, projections])
+
+  useEffect(() => {
+    if (!pendingTodayJump.current) return
+    if (explorer.view !== 'list' || explorer.month !== todayKey.slice(0, 7)) {
+      pendingTodayJump.current = false
+      return
+    }
+    if (!showTodayDivider) {
+      if (feedUrl === null || feedQuery.isError || feedQuery.isSuccess)
+        pendingTodayJump.current = false
+      return
+    }
+    const frame = requestAnimationFrame(() => {
+      focusToday()
+      pendingTodayJump.current = false
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [
+    explorer.view,
+    explorer.month,
+    todayKey,
+    showTodayDivider,
+    feedUrl,
+    feedQuery.isError,
+    feedQuery.isSuccess
+  ])
 
   const defaultVenueIds =
     optionsQuery.data?.defaultVenueIds ?? dtsmDefaultVenueIds
@@ -222,6 +266,8 @@ export default function App() {
         />
         <CalendarPanel
           month={explorer.month}
+          todayKey={todayKey}
+          showTodayDivider={showTodayDivider}
           view={explorer.view}
           projections={projections}
           isNarrow={isNarrow}
@@ -231,6 +277,14 @@ export default function App() {
           error={feedQuery.error}
           emptyMessage={emptyMessage}
           onMonthChange={setMonth}
+          onToday={() => {
+            if (explorer.month !== todayKey.slice(0, 7)) {
+              setMonth(todayKey.slice(0, 7))
+              pendingTodayJump.current = explorer.view === 'list'
+            } else {
+              requestAnimationFrame(focusToday)
+            }
+          }}
           onViewChange={setView}
           onSelectedKeyChange={setSelectedKey}
           onShowDayInList={day => {

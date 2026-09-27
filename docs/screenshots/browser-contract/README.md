@@ -1,7 +1,8 @@
 # Calendar explorer browser contract
 
 These images are Playwright's expected screenshots for the executable visual
-contract in `frontend/e2e/calendar-explorer.visual.spec.ts`. They are generated
+contracts in `frontend/e2e/calendar-explorer.visual.spec.ts` and
+`frontend/e2e/today-divider.visual.spec.ts`. They are generated
 from the real Vite application with production-shaped development fixtures.
 
 The suite covers the exact combinations that the earlier manual review left
@@ -20,6 +21,12 @@ focus restoration.
 trigger, panel, scroll region, row, checkbox control and label rectangles,
 computed pointer/keyboard outlines, and Escape focus return. It is a reviewable
 sample, while the browser suite enforces the complete matrix on each run.
+
+The `today-divider.visual.spec.ts/` snapshots cover List with and without a
+today event at 1280, 390, and 320px, plus Grid at 320px. The browser tests
+also measure the date cue, divider, action focus and scroll, Grid marker,
+contrast, targets, document width, and subscription URL. Direct before/after
+review pairs live in `docs/screenshots/today-divider/`.
 
 Update these images only after inspecting the full replacement set and
 confirming that the corresponding product contract change is intentional.

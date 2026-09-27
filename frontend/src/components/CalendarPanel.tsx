@@ -8,8 +8,9 @@ import {
 } from '@chakra-ui/react'
 import { CalendarDays, ChevronLeft, ChevronRight, List } from 'lucide-react'
 import {
-  currentMonth,
+  fullDate,
   monthLabel,
+  shortDate,
   shiftMonth,
   type EventProjection,
   type ViewId
@@ -19,6 +20,8 @@ import { CalendarGrid, CalendarList, LoadState } from './CalendarViews'
 
 export function CalendarPanel(props: {
   month: string
+  todayKey: string
+  showTodayDivider: boolean
   view: ViewId
   projections: EventProjection[]
   isNarrow: boolean
@@ -28,11 +31,16 @@ export function CalendarPanel(props: {
   error: Error | null
   emptyMessage?: string
   onMonthChange: (month: string) => void
+  onToday: () => void
   onViewChange: (view: ViewId) => void
   onSelectedKeyChange: (key: string | null) => void
   onShowDayInList: (day: string) => void
   onRetry: () => void
 }) {
+  const todayMonth = props.todayKey.slice(0, 7)
+  const todayActionEnabled =
+    props.month !== todayMonth ||
+    (props.view === 'list' && props.showTodayDivider)
   return (
     <Tabs.Root
       as="section"
@@ -96,18 +104,19 @@ export function CalendarPanel(props: {
               {monthLabel(props.month)}
             </Heading>
             <Button
+              aria-label={`Go to today, ${fullDate(props.todayKey)}`}
               variant="plain"
               minH={{ base: 'touchTarget', md: 'auto' }}
               p={{ base: '8px 3px', md: '3px' }}
               color="calendar.link"
               fontSize="12px"
               fontWeight="500"
-              disabled={props.month === currentMonth()}
-              onClick={() => props.onMonthChange(currentMonth())}
-              _disabled={{ color: 'calendar.subtle', opacity: 0.7 }}
+              disabled={!todayActionEnabled}
+              onClick={props.onToday}
+              _disabled={{ color: 'calendar.muted', opacity: 1 }}
               _focusVisible={focusRing}
             >
-              Go to today
+              Today · {shortDate(props.todayKey)}
             </Button>
           </Flex>
         </Flex>
@@ -154,6 +163,7 @@ export function CalendarPanel(props: {
         >
           <CalendarGrid
             month={props.month}
+            todayKey={props.todayKey}
             projections={props.projections}
             isNarrow={props.isNarrow}
             compact={props.compactGrid}
@@ -172,6 +182,7 @@ export function CalendarPanel(props: {
         >
           <CalendarList
             projections={props.projections}
+            todayKey={props.showTodayDivider ? props.todayKey : null}
             isNarrow={props.isNarrow}
             selectedKey={props.selectedKey}
             setSelectedKey={props.onSelectedKeyChange}

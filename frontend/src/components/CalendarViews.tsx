@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { Fragment, useMemo, type ReactNode } from 'react'
 import {
   Box,
   Button,
@@ -11,29 +11,21 @@ import {
 } from '@chakra-ui/react'
 import { RefreshCw } from 'lucide-react'
 import {
-  currentMonth,
   dateKey,
   fullDate,
   monthGrid,
   monthLabel,
+  shortDate,
   shortWeekday,
   type EventProjection
 } from '../calendar'
-import { controlProps, eventTone } from '../theme'
+import { controlProps, eventTone, focusRing } from '../theme'
 import { EventTrigger } from './EventDetails'
 import { OverflowPopover } from './OverflowPopover'
 
-function dateKeyFromToday(): string {
-  const [year, month] = currentMonth().split('-')
-  const day = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Los_Angeles',
-    day: '2-digit'
-  }).format(new Date())
-  return `${year}-${month}-${day}`
-}
-
 export function CalendarGrid(props: {
   month: string
+  todayKey: string
   projections: EventProjection[]
   isNarrow: boolean
   compact: boolean
@@ -41,7 +33,9 @@ export function CalendarGrid(props: {
   setSelectedKey: (key: string | null) => void
   showDayInList: (day: string) => void
 }) {
-  const today = currentMonth() === props.month ? dateKeyFromToday() : ''
+  const today = props.todayKey.startsWith(`${props.month}-`)
+    ? props.todayKey
+    : ''
   const limit = props.compact ? 2 : 3
   const dates = monthGrid(props.month)
   const weeks = Array.from({ length: 6 }, (_, index) =>
@@ -192,6 +186,7 @@ export function CalendarGrid(props: {
 
 export function CalendarList(props: {
   projections: EventProjection[]
+  todayKey: string | null
   isNarrow: boolean
   selectedKey: string | null
   setSelectedKey: (key: string | null) => void
@@ -202,55 +197,91 @@ export function CalendarList(props: {
       result.set(item.dateKey, [...(result.get(item.dateKey) ?? []), item])
     return result
   }, [props.projections])
+  const days = [...groups].sort(([left], [right]) => left.localeCompare(right))
+  const dividerIndex = props.todayKey
+    ? days.findIndex(([day]) => day >= props.todayKey!)
+    : -1
+  const divider = props.todayKey ? (
+    <TodayDivider dateKey={props.todayKey} />
+  ) : null
   return (
     <Stack w="min(900px, calc(100% - 28px))" mx="auto" py="12px" gap="0">
-      {[...groups].map(([day, events]) => (
-        <Grid
-          key={day}
-          id={`calendar-list-day-${day}`}
-          gridTemplateColumns={{
-            base: '48px minmax(0,1fr)',
-            md: '72px minmax(0,1fr)'
-          }}
-          gap={{ base: '10px', md: '18px' }}
-          py="16px"
-          borderBottomWidth="1px"
-          borderColor="calendar.border"
-        >
-          <Box pt="3px">
-            <Text
-              color="calendar.subtle"
-              fontSize="11px"
-              fontWeight="500"
-              textTransform="uppercase"
-            >
-              {shortWeekday(day)}
-            </Text>
-            <Text
-              mt="1px"
-              color="calendar.text"
-              fontSize="24px"
-              fontWeight="500"
-              lineHeight="1"
-            >
-              {Number(day.slice(-2))}
-            </Text>
-          </Box>
-          <Stack gap="7px">
-            {events.map(item => (
-              <EventTrigger
-                key={item.key}
-                projection={item}
-                variant="list"
-                isNarrow={props.isNarrow}
-                selectedKey={props.selectedKey}
-                setSelectedKey={props.setSelectedKey}
-              />
-            ))}
-          </Stack>
-        </Grid>
+      {days.map(([day, events], index) => (
+        <Fragment key={day}>
+          {index === dividerIndex && divider}
+          <Grid
+            id={`calendar-list-day-${day}`}
+            gridTemplateColumns={{
+              base: '48px minmax(0,1fr)',
+              md: '72px minmax(0,1fr)'
+            }}
+            gap={{ base: '10px', md: '18px' }}
+            py="16px"
+            borderBottomWidth="1px"
+            borderColor="calendar.border"
+          >
+            <Box pt="3px">
+              <Text
+                color="calendar.subtle"
+                fontSize="11px"
+                fontWeight="500"
+                textTransform="uppercase"
+              >
+                {shortWeekday(day)}
+              </Text>
+              <Text
+                mt="1px"
+                color="calendar.text"
+                fontSize="24px"
+                fontWeight="500"
+                lineHeight="1"
+              >
+                {Number(day.slice(-2))}
+              </Text>
+            </Box>
+            <Stack gap="7px">
+              {events.map(item => (
+                <EventTrigger
+                  key={item.key}
+                  projection={item}
+                  variant="list"
+                  isNarrow={props.isNarrow}
+                  selectedKey={props.selectedKey}
+                  setSelectedKey={props.setSelectedKey}
+                />
+              ))}
+            </Stack>
+          </Grid>
+        </Fragment>
       ))}
+      {dividerIndex === -1 && divider}
     </Stack>
+  )
+}
+
+function TodayDivider(props: { dateKey: string }) {
+  return (
+    <Flex
+      id="calendar-today-divider"
+      tabIndex={-1}
+      aria-label={`Today, ${fullDate(props.dateKey)}`}
+      align="center"
+      gap="10px"
+      py="9px"
+      scrollMarginTop="18px"
+      _focusVisible={focusRing}
+    >
+      <Box flex="1" h="1px" bg="calendar.border" aria-hidden="true" />
+      <Text
+        color="calendar.link"
+        fontSize="12px"
+        fontWeight="500"
+        whiteSpace="nowrap"
+      >
+        Today · {shortWeekday(props.dateKey)}, {shortDate(props.dateKey)}
+      </Text>
+      <Box flex="1" h="1px" bg="calendar.border" aria-hidden="true" />
+    </Flex>
   )
 }
 

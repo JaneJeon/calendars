@@ -29,6 +29,9 @@ surface × viewport × interaction-state denominator executable.
 - `calendar.ts` parses ICS with `ical.js` into one event-self and projects
   multi-day events onto `America/Los_Angeles` dates. All-day `DTEND` remains
   exclusive.
+- `use-today.ts` keeps one transient LA calendar date for the toolbar, List
+  divider, Grid marker, and Today action, refreshing at the next LA date and
+  when the tab resumes.
 - `filters.ts` owns validated persistence, DTSM option reconciliation, grouped
   raw-ID selection, and canonical subscription URL construction.
 - `theme.ts` owns the dark semantic tokens and the verified contrast-pair

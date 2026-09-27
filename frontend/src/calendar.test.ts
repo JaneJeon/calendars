@@ -7,13 +7,16 @@ import {
   eventDetailTime,
   eventToneFor,
   fullDate,
+  millisecondsUntilNextLaDate,
   monthGrid,
   monthLabel,
   parseCalendar,
   projectEvents,
   projectionsForMonth,
   shiftMonth,
+  shortDate,
   shortWeekday,
+  todayDateKey,
   type CalendarEvent
 } from './calendar'
 
@@ -175,8 +178,22 @@ END:VCALENDAR\r
     expect(monthGrid('2026-09')).toHaveLength(42)
     expect(dateKey(monthGrid('2026-09')[0]!)).toBe('2026-08-30')
     expect(fullDate('2026-09-12')).toContain('Saturday')
+    expect(shortDate('2026-09-12')).toBe('Sep 12')
     expect(shortWeekday('2026-09-12')).toBe('Sat')
     expect(currentMonth(new Date('2026-09-12T12:00:00Z'))).toBe('2026-09')
+    expect(todayDateKey(new Date('2026-10-01T06:30:00Z'))).toBe('2026-09-30')
+    expect(todayDateKey(new Date('2026-10-01T07:30:00Z'))).toBe('2026-10-01')
+    expect(todayDateKey()).toBe(todayDateKey(new Date()))
+    expect(todayDateKey(new Date('2026-09-26T06:30:00Z'))).toBe('2026-09-25')
+    expect(millisecondsUntilNextLaDate(new Date('2026-09-26T06:59:59Z'))).toBe(
+      1000
+    )
+    expect(millisecondsUntilNextLaDate(new Date('2026-03-08T08:00:00Z'))).toBe(
+      23 * 60 * 60 * 1000
+    )
+    expect(millisecondsUntilNextLaDate(new Date('2026-11-01T07:00:00Z'))).toBe(
+      25 * 60 * 60 * 1000
+    )
   })
 
   it('formats event details and stable semantic tones', () => {
