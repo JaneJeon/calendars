@@ -44,6 +44,7 @@ export function FilterCheckboxRow({
 }) {
   return (
     <Checkbox.Root
+      data-testid="filter-checkbox-row"
       checked={checked}
       onCheckedChange={({ checked }) => onChange(checked === true)}
       minH="touchTarget"
@@ -56,10 +57,13 @@ export function FilterCheckboxRow({
       fontSize="13px"
       cursor="pointer"
       _hover={{ bg: 'action.subtle' }}
-      _focusWithin={focusRing}
     >
       <Checkbox.HiddenInput ref={inputRef} />
-      <Checkbox.Control flexShrink="0" colorPalette="action">
+      <Checkbox.Control
+        flexShrink="0"
+        colorPalette="action"
+        _focusVisible={focusRing}
+      >
         <Checkbox.Indicator />
       </Checkbox.Control>
       <Checkbox.Label
@@ -129,8 +133,13 @@ export function FilterPopover(props: {
       <Portal>
         <Popover.Positioner>
           <Popover.Content
-            minW="260px"
-            maxW="min(390px, calc(100vw - 28px))"
+            data-testid={`filter-popover-${props.label.toLocaleLowerCase()}`}
+            w={{ base: 'var(--reference-width)', md: 'auto' }}
+            minW={{ base: '0', md: '260px' }}
+            maxW={{
+              base: 'var(--reference-width)',
+              md: 'min(390px, calc(100vw - 28px))'
+            }}
             p="6px"
             borderWidth="1px"
             borderColor="calendar.controlBorder"
@@ -178,6 +187,7 @@ export function FilterPopover(props: {
               </Flex>
             ) : null}
             <Stack
+              data-testid="filter-options-scroll"
               maxH="min(430px, var(--available-height))"
               overflowY="auto"
               gap="2px"
