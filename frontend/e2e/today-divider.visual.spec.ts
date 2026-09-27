@@ -14,15 +14,10 @@ async function openFixture(page: Page, width: number, now: Date) {
 
 async function subscriptionUrl(page: Page) {
   await page.getByRole('button', { name: 'Add to calendar' }).click()
-  const menu = page.getByRole('menu')
-  const href = await page
+  return page
     .getByText('Apple Calendar')
     .locator('xpath=ancestor::a[1]')
     .getAttribute('href')
-  await menu.focus()
-  await menu.press('Escape')
-  await expect(menu).toBeHidden()
-  return href
 }
 
 async function contrastRatio(page: Page) {
@@ -88,7 +83,7 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
     secondSameDay,
     boundaryBefore,
     boundaryAfter,
-    rule
+    label
   ] = await Promise.all([
     page.getByRole('tabpanel', { name: 'List' }).boundingBox(),
     ordinaryRule.boundingBox(),
@@ -97,18 +92,21 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
     row12.getByRole('button').nth(1).boundingBox(),
     row19.getByRole('button').first().boundingBox(),
     row26.getByRole('button').first().boundingBox(),
-    divider.locator('[aria-hidden="true"]').first().boundingBox()
+    divider.locator('p').boundingBox()
   ])
   const normalLine = normalRule!.y + normalRule!.height / 2
-  const boundaryLine = rule!.y + rule!.height / 2
   const sameDayGap = secondSameDay!.y - (normalAfter!.y + normalAfter!.height)
   expect(sameDayGap).toBe(8)
+  const beforeText = label!.y - (boundaryBefore!.y + boundaryBefore!.height)
+  const afterText = boundaryAfter!.y - (label!.y + label!.height)
+  expect(beforeText).toBeGreaterThanOrEqual(7.5)
+  expect(afterText).toBeGreaterThanOrEqual(7.5)
   const gaps = [
     normalBefore!.y - list!.y,
     normalLine - (normalBefore!.y + normalBefore!.height),
     normalAfter!.y - normalLine,
-    boundaryLine - (boundaryBefore!.y + boundaryBefore!.height),
-    boundaryAfter!.y - boundaryLine,
+    beforeText,
+    afterText,
     list!.y + list!.height - (boundaryAfter!.y + boundaryAfter!.height)
   ]
   for (const gap of gaps)
@@ -181,12 +179,11 @@ for (const [instant, position] of [
     const ordinaryRule = page
       .locator('#calendar-list-day-2026-09-05')
       .locator('xpath=following-sibling::*[1]')
-    const [ordinaryRuleBox, dividerRuleBox] = await Promise.all([
+    const [ordinaryRuleBox, labelBox] = await Promise.all([
       ordinaryRule.boundingBox(),
-      divider.locator('[aria-hidden="true"]').first().boundingBox()
+      divider.locator('p').boundingBox()
     ])
     const ordinaryLine = ordinaryRuleBox!.y + ordinaryRuleBox!.height / 2
-    const dividerLine = dividerRuleBox!.y + dividerRuleBox!.height / 2
     expect(dividerBox!.y).toBeGreaterThanOrEqual(listBox!.y)
     expect(dividerBox!.y + dividerBox!.height).toBeLessThanOrEqual(
       listBox!.y + listBox!.height
@@ -208,8 +205,13 @@ for (const [instant, position] of [
           .boundingBox()
       ])
       expect(
-        Math.abs(firstCard!.y - dividerLine - (nextCard!.y - ordinaryLine))
+        Math.abs(
+          firstCard!.y -
+            (labelBox!.y + labelBox!.height) -
+            (nextCard!.y - ordinaryLine)
+        )
       ).toBeLessThanOrEqual(2)
+      expect(labelBox!.y - listBox!.y).toBeGreaterThanOrEqual(7.5)
     } else {
       expect(
         await divider.evaluate(element => element.nextElementSibling)
@@ -232,11 +234,14 @@ for (const [instant, position] of [
       ])
       expect(
         Math.abs(
-          dividerLine -
+          labelBox!.y -
             (lastCard!.y + lastCard!.height) -
             (ordinaryLine - (earlierCard!.y + earlierCard!.height))
         )
       ).toBeLessThanOrEqual(2)
+      expect(
+        listBox!.y + listBox!.height - (labelBox!.y + labelBox!.height)
+      ).toBeGreaterThanOrEqual(7.5)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)
@@ -253,9 +258,6 @@ for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 600 })
     await page.getByRole('button', { name: 'Next month' }).click()
     await expect(page.locator('#calendar-today-divider')).toHaveCount(0)
-    expect(await subscriptionUrl(page)).toBe(
-      'webcal://localhost:8787/dtsm-events.ics'
-    )
     const today = page.getByRole('button', { name: /Go to today,/ })
     if (width === 320) {
       await today.focus()

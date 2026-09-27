@@ -143,9 +143,10 @@ or emptiness never broadens or erases persisted intent.
   One List boundary owns every separator. It renders either a plain rule or the
   Today-labelled rule; event rows draw no separator. One 8px List vertical rhythm
   governs the panel edges, row padding, gaps between same-day cards, and
-  distances to ordinary and Today rules. The Today label geometry derives from
-  that rhythm. An ordinary rule appears only between date groups, never after
-  the last one.
+  distances to ordinary rules. The Today label occupies its text height in the
+  layout, with 8px clearance from the adjacent cards on both sides. Measuring
+  only its rule would miss text crowding. An ordinary rule appears only between
+  date groups, never after the last one.
   Other months, loading, failure, no-event months, and intentionally empty
   filters have no divider. Past event cards keep their normal appearance.
 - The month toolbar shows `Today · <short month and day>` with the full date and
@@ -237,6 +238,7 @@ needed to prevent recurrence.
 | Menu indicators crossed option labels                        | Custom padding overwrote reserved anatomy                                                                                                    | Preserve compound geometry                                                                                                                    | Zero control/label overlap                                                                         |
 | Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Playwright screenshots plus trigger/panel, row/control/label, focus-style, and viewport assertions |
 | Today cue doubled rules and broke List rhythm (#43)          | A row and cue split one boundary; 12px outer, 16px row, 7px card, and 10px label values also split one rhythm                                | One boundary owner and one List rhythm; no trailing ordinary rule                                                                             | One rule; compare top, same-day, rule, and bottom gaps within 2px                                  |
+| Today text touched event cards (#43)                         | Measuring rule centers missed the 17px text box; compressing its flow slot erased the clearance                                              | Label occupies its text height with 8px clearance on both sides                                                                               | Browser measures text bounds against adjacent cards at every width and edge                        |
 
 ## Executable visual denominator
 
@@ -262,7 +264,7 @@ real Vite application and deterministic production-shaped fixtures. The Today
 cells also use a fixed LA clock to assert divider position, visible and
 accessible dates, focus and scroll behavior, target geometry, document width,
 computed contrast, one List rhythm from the first edge through same-day cards,
-ordinary and Today rules to the final edge, clean runtime logs,
+ordinary rules and the Today text box to the final edge, clean runtime logs,
 and unchanged canonical subscription URLs. A date rollover changes the cue and
 marker without changing the preview month or moving the page.
 Playwright snapshots catch composition. DOM rectangle and computed-style

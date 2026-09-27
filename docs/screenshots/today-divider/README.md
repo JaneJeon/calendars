@@ -31,6 +31,6 @@ The executable browser contract in
 a today event at 1280, 390, and 320px, plus Grid at 320px, on Darwin and Linux.
 Its DOM and computed-style assertions check divider placement, visible date,
 text contrast, the single 8px rhythm from panel edges through same-day cards
-and date rules to the final edge, toolbar target height, document width, Today
+and ordinary rules plus clearance around the Today text, toolbar target height, document width, Today
 scroll and focus, Grid's marker through midnight, runtime errors, and the exact
 subscription URL. Each screenshot shows only its stated viewport and state.

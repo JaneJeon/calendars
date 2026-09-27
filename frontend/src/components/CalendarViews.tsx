@@ -24,7 +24,7 @@ import { EventTrigger } from './EventDetails'
 import { OverflowPopover } from './OverflowPopover'
 
 const LIST_RHYTHM_PX = 8
-const LIST_LABEL_BOUNDARY_HEIGHT_PX = LIST_RHYTHM_PX * 2 + 1
+const TODAY_LABEL_LINE_HEIGHT_PX = 17
 
 export function CalendarGrid(props: {
   month: string
@@ -282,9 +282,9 @@ function ListBoundary(props: {
       aria-label={`Today, ${fullDate(props.dateKey)}`}
       align="center"
       gap="8px"
-      h={`${LIST_LABEL_BOUNDARY_HEIGHT_PX}px`}
-      mt={props.placement === 'start' ? '0' : `-${LIST_RHYTHM_PX}px`}
-      mb={props.placement === 'end' ? '0' : `-${LIST_RHYTHM_PX}px`}
+      h={`${TODAY_LABEL_LINE_HEIGHT_PX}px`}
+      mt={props.placement === 'start' ? `${LIST_RHYTHM_PX}px` : '0'}
+      mb={props.placement === 'end' ? `${LIST_RHYTHM_PX}px` : '0'}
       position="relative"
       zIndex="1"
       scrollMarginTop="18px"
@@ -295,7 +295,7 @@ function ListBoundary(props: {
         color="calendar.link"
         fontSize="12px"
         fontWeight="500"
-        lineHeight={`${LIST_LABEL_BOUNDARY_HEIGHT_PX}px`}
+        lineHeight={`${TODAY_LABEL_LINE_HEIGHT_PX}px`}
         whiteSpace="nowrap"
       >
         Today · {shortWeekday(props.dateKey)}, {shortDate(props.dateKey)}
