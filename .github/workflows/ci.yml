@@ -142,7 +142,9 @@ jobs:
       # Version URL serves the same deployed Worker version through workers.dev.
       - name: Resolve deployed frontend Version URL
         if: steps.affected.outputs.frontend == 'true'
-        run: echo "DEPLOYED_FRONTEND_URL=$(node frontend/scripts/get-deployed-version-url.mjs)" >> "$GITHUB_ENV"
+        run: |
+          smoke_url=$(node frontend/scripts/get-deployed-version-url.mjs)
+          echo "DEPLOYED_FRONTEND_URL=$smoke_url" >> "$GITHUB_ENV"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
