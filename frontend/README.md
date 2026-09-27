@@ -141,6 +141,10 @@ assert that the custom domain's zone settings allow CI traffic.
 
 The checked-in [calendar explorer captures](../docs/screenshots/calendar-explorer/README.md)
 and [DTSM filter captures](../docs/screenshots/dtsm-filter-hotfix/README.md)
-are historical implementation evidence. Current visual review uses the three
-List attachments in the browser report. After `npm run test:browser`, run
-`npx playwright show-report` from `frontend/`.
+are historical implementation evidence. The browser report holds current
+diagnostic captures. For an application-facing visual change, place a focused
+comparison inline in the PR as the [design contract](../docs/design/calendar-explorer.md#executable-product-contract)
+describes. Use `--attach` with `gh pr create` (or `gh pr edit` for an open PR),
+and reference the local image paths in the body Markdown. The CLI uploads them
+and replaces the paths with hosted URLs. The images do not enter the Git diff.
+After `npm run test:browser`, run `npx playwright show-report` from `frontend/`.

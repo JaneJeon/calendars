@@ -24,8 +24,8 @@ import { EventTrigger } from './EventDetails'
 import { OverflowPopover } from './OverflowPopover'
 
 const LIST_VERTICAL_INSET = '5'
-const DATE_BOUNDARY_GAP = '5'
-const SAME_DAY_EVENT_GAP = '3'
+const DATE_BOUNDARY_GAP = '3'
+const SAME_DAY_EVENT_GAP = '4'
 
 export function CalendarGrid(props: {
   month: string
