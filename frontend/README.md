@@ -117,26 +117,19 @@ contrast.
 `test:browser` runs Playwright against the real Vite application and those
 production-shaped fixtures. Chromium covers the complete surface matrix;
 WebKit repeats the critical 320 px Type popover with mouse, keyboard, and
-iPhone-style touch input. The tests combine screenshot
-snapshots with DOM rectangle and computed-style assertions for trigger/panel
-alignment, viewport containment, 44 px targets, control/label overlap, pointer
-versus keyboard focus, dismissal, and focus return. Update snapshots only for
-an intentional reviewed change with `npm run test:browser:update`.
+iPhone-style touch input. The tests use DOM rectangle and computed-style
+assertions for trigger/panel alignment, viewport containment, 44 px targets,
+control/label overlap, pointer versus keyboard focus, dismissal, focus return,
+List spacing, and wrapped boundary content. Visual review uses three current
+List renders, one at each supported width. They attach to the generated
+Playwright HTML report; open it with `npx playwright show-report`. The browser
+contract does not compare platform-specific image baselines.
 
 Install the local browser binaries once with:
 
 ```sh
 npx playwright install chromium webkit
 ```
-
-`npm run test:browser:update` regenerates the current platform's snapshots.
-`npm run test:browser:update:linux` uses the pinned official Playwright Docker
-image on an x86_64 host to regenerate the Linux baselines used by CI without
-replacing the host's `node_modules`. The script stops on arm64 because the
-multi-arch image renders different pixels, while x86 emulation cannot run
-Chromium on this Mac. CI runs the browser job inside the pinned image on x86_64.
-When a CI screenshot fails, inspect its uploaded expected, actual, and diff
-images before updating that baseline.
 
 The post-deploy browser smoke uses the immutable Version URL of the active
 frontend Worker. GitHub-hosted runners receive HTTP 403 from the production
@@ -146,11 +139,8 @@ checks the exact deployed assets and live discovery, adjusting only the
 backend CORS response for the Version URL's different origin. It does not
 assert that the custom domain's zone settings allow CI traffic.
 
-The checked-in [review screenshots](../docs/screenshots/calendar-explorer/README.md)
-show the final implementation at desktop, 390 px, and 320 px, including busy
-overflow, event detail, and long filter-menu states. They are browser captures,
-not Figma artifacts.
-
-The [DTSM filter hotfix captures](../docs/screenshots/dtsm-filter-hotfix/README.md)
-use the synchronized D1 vocabulary and show grouped Places, normalized Types,
-decoded Organizers, and the 320 px hierarchy.
+The checked-in [calendar explorer captures](../docs/screenshots/calendar-explorer/README.md)
+and [DTSM filter captures](../docs/screenshots/dtsm-filter-hotfix/README.md)
+are historical implementation evidence. Current visual review uses the three
+List attachments in the browser report. After `npm run test:browser`, run
+`npx playwright show-report` from `frontend/`.

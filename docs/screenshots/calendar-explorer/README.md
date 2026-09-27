@@ -1,6 +1,10 @@
-# Calendar explorer review evidence
+# Historical calendar explorer captures
 
-These screenshots were captured from the running Vite implementation at
+These are historical screenshots from an earlier Vite implementation. They
+are not current visual baselines. Current List captures at desktop, 390 px, and
+320 px attach to the Playwright report after `npm run test:browser`.
+
+They were captured from the running Vite implementation at
 `http://localhost:5173/?__scenario=busy` as implementation review evidence.
 They use the development fixture only to make busy, long-text, overflow, and
 responsive states deterministic; the fixture still runs through the production
