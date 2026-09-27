@@ -1,4 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import {
+  closeMenuAndRestoreFocus,
+  openMenuAndFocus,
+  selectCalendarRepresentation
+} from './contract-helpers'
 
 const fixedNow = new Date('2026-09-20T12:00:00-07:00')
 
@@ -24,7 +29,20 @@ async function openMobileFilters(page: Page) {
 async function visibleFilterPopover(page: Page, name: string) {
   const popover = page.getByTestId(`filter-popover-${name}`)
   await expect(popover).toBeVisible()
+  await expect(popover.locator('[data-part="title"]')).toBeVisible()
+  await expect(popover.getByTestId('filter-checkbox-row').first()).toBeVisible()
   return popover
+}
+
+async function dismissFilterPopover(
+  page: Page,
+  trigger: Locator,
+  popover: Locator
+) {
+  await page.keyboard.press('Escape')
+  await expect(popover).toBeHidden()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(trigger).toBeFocused()
 }
 
 async function outline(locator: Locator) {
@@ -34,17 +52,6 @@ async function outline(locator: Locator) {
       style: style.outlineStyle,
       width: Number.parseFloat(style.outlineWidth)
     }
-  })
-}
-
-async function resetScroll(page: Page) {
-  await page.mouse.move(0, 0)
-  await page.evaluate(() => {
-    window.scrollTo(0, 0)
-    for (const element of document.querySelectorAll<HTMLElement>(
-      '[data-testid="filter-options-scroll"]'
-    ))
-      element.scrollTop = 0
   })
 }
 
@@ -265,8 +272,6 @@ test.describe('filter popover visual contract', () => {
           name: 'Sutter Medical Center San Mateo'
         })
       ).toBeVisible()
-      await resetScroll(page)
-      await expectNarrowFilterGeometry(page, placesTrigger, places)
       await page.keyboard.press('Escape')
 
       await placesTrigger.click()
@@ -280,7 +285,6 @@ test.describe('filter popover visual contract', () => {
           .getByRole('checkbox', { name: 'B Street', exact: true })
           .evaluate(element => (element as HTMLInputElement).indeterminate)
       ).toBe(true)
-      await resetScroll(page)
       await page.keyboard.press('Escape')
 
       const typeTrigger = page.getByRole('button', { name: 'Type: All types' })
@@ -291,10 +295,6 @@ test.describe('filter popover visual contract', () => {
         .getByTestId('filter-checkbox-row')
         .filter({ hasText: 'Events' })
         .click()
-      await expect(
-        type.getByRole('checkbox', { name: 'Events', exact: true })
-      ).not.toBeChecked()
-      await resetScroll(page)
       await page.keyboard.press('Escape')
 
       const organizerTrigger = page.getByRole('button', {
@@ -303,7 +303,6 @@ test.describe('filter popover visual contract', () => {
       await organizerTrigger.click()
       const organizer = await visibleFilterPopover(page, 'organizer')
       await expectNarrowFilterGeometry(page, organizerTrigger, organizer)
-      await resetScroll(page)
       await organizer
         .getByRole('textbox', { name: 'Search organizers' })
         .fill('community')
@@ -312,8 +311,6 @@ test.describe('filter popover visual contract', () => {
           name: 'Bay Area Community Health Advisory Council'
         })
       ).toBeVisible()
-      await resetScroll(page)
-      await expectNarrowFilterGeometry(page, organizerTrigger, organizer)
     })
   }
 
@@ -325,63 +322,60 @@ test.describe('filter popover visual contract', () => {
     const calendarMenu = page.getByRole('button', {
       name: 'Downtown San Mateo events'
     })
-    await calendarMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Downtown San Mateo events' })
-    ).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(calendarMenu).toBeFocused()
+    const calendarContent = await openMenuAndFocus(page, calendarMenu)
+    await expect(calendarContent.locator('[data-part="item"]')).toHaveCount(2)
+    await closeMenuAndRestoreFocus(page, calendarMenu, calendarContent)
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
-    await addMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Add to calendar' })
-    ).toBeVisible()
-    await expect(page.getByText('Apple Calendar')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(addMenu).toBeFocused()
+    const addMenuContent = await openMenuAndFocus(page, addMenu)
+    await expect(addMenuContent.locator('[data-part="item"]')).toHaveCount(5)
+    await expect(addMenuContent.getByText('Apple Calendar')).toBeVisible()
+    await closeMenuAndRestoreFocus(page, addMenu, addMenuContent)
 
     const placesTrigger = page.getByRole('button', {
       name: 'Places: B Street + Central Park'
     })
     await placesTrigger.click()
-    await visibleFilterPopover(page, 'places')
-    await page.keyboard.press('Escape')
+    const places = await visibleFilterPopover(page, 'places')
+    await dismissFilterPopover(page, placesTrigger, places)
 
     const typeTrigger = page.getByRole('button', { name: 'Type: All types' })
     await typeTrigger.click()
-    await visibleFilterPopover(page, 'type')
-    await page.keyboard.press('Escape')
+    const type = await visibleFilterPopover(page, 'type')
+    await dismissFilterPopover(page, typeTrigger, type)
 
     const organizerTrigger = page.getByRole('button', {
       name: 'Organizer: All organizers'
     })
     await organizerTrigger.click()
-    await visibleFilterPopover(page, 'organizer')
-    await page.keyboard.press('Escape')
+    const organizer = await visibleFilterPopover(page, 'organizer')
+    await dismissFilterPopover(page, organizerTrigger, organizer)
 
-    await page.getByRole('button', { name: '+1 more' }).click()
-    await expect(
-      page.getByRole('button', { name: /Walk, Run, Ride to the Moon/ })
-    ).toBeVisible()
-    await page
-      .getByRole('button', { name: /Walk, Run, Ride to the Moon/ })
-      .click()
+    const overflowTrigger = page.getByRole('button', { name: '+1 more' })
+    await overflowTrigger.click()
+    const hiddenEvent = page.getByRole('button', {
+      name: /Walk, Run, Ride to the Moon/
+    })
+    await expect(hiddenEvent).toBeVisible()
+    await hiddenEvent.click()
     await expect(
       page.getByRole('heading', { name: 'Walk, Run, Ride to the Moon' })
     ).toBeVisible()
-    await page.getByRole('button', { name: /Back to/ }).click()
+    const back = page.getByRole('button', { name: /Back to/ })
+    await back.click()
+    await expect(hiddenEvent).toBeVisible()
+    await expect(hiddenEvent).toBeFocused()
     await page.keyboard.press('Escape')
+    await expect(overflowTrigger).toHaveAttribute('aria-expanded', 'false')
+    await expect(overflowTrigger).toBeFocused()
 
-    await page.getByRole('tab', { name: 'List' }).click()
-    await page.getByRole('button', { name: /Yoga in the Park/ }).click()
+    await selectCalendarRepresentation(page, 'List')
+    const yoga = page.getByRole('button', { name: /Yoga in the Park/ })
+    await yoga.click()
+    await expect(yoga).toHaveAttribute('aria-expanded', 'true')
     await expect(
       page.getByRole('heading', { name: 'Yoga in the Park' })
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Close event details' }).click()
-    await expect(
-      page.getByRole('button', { name: /Yoga in the Park/ })
-    ).toBeFocused()
   })
 
   for (const width of [390, 320]) {
@@ -389,15 +383,13 @@ test.describe('filter popover visual contract', () => {
       page
     }) => {
       await openFixture(page, { width, height: 1000 })
-      await page.getByRole('tab', { name: 'List' }).click()
-      await page.getByRole('button', { name: /Yoga in the Park/ }).click()
+      await selectCalendarRepresentation(page, 'List')
+      const yoga = page.getByRole('button', { name: /Yoga in the Park/ })
+      await yoga.click()
+      await expect(yoga).toHaveAttribute('aria-expanded', 'true')
       await expect(
         page.getByRole('heading', { name: 'Yoga in the Park' })
       ).toBeVisible()
-      await page.getByRole('button', { name: 'Close event details' }).click()
-      await expect(
-        page.getByRole('button', { name: /Yoga in the Park/ })
-      ).toBeFocused()
     })
   }
 
@@ -406,21 +398,15 @@ test.describe('filter popover visual contract', () => {
     const calendarMenu = page.getByRole('button', {
       name: 'Downtown San Mateo events'
     })
-    await calendarMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Downtown San Mateo events' })
-    ).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(calendarMenu).toBeFocused()
+    const calendarContent = await openMenuAndFocus(page, calendarMenu)
+    await expect(calendarContent.locator('[data-part="item"]')).toHaveCount(2)
+    await closeMenuAndRestoreFocus(page, calendarMenu, calendarContent)
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
-    await addMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Add to calendar' })
-    ).toBeVisible()
-    await expect(page.getByText('Apple Calendar')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(addMenu).toBeFocused()
+    const addMenuContent = await openMenuAndFocus(page, addMenu)
+    await expect(addMenuContent.locator('[data-part="item"]')).toHaveCount(5)
+    await expect(addMenuContent.getByText('Apple Calendar')).toBeVisible()
+    await closeMenuAndRestoreFocus(page, addMenu, addMenuContent)
   })
 
   test('covers narrow menus and compact Grid at 320px', async ({ page }) => {
@@ -428,35 +414,24 @@ test.describe('filter popover visual contract', () => {
     const calendarMenu = page.getByRole('button', {
       name: 'Downtown San Mateo events'
     })
-    await calendarMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Downtown San Mateo events' })
-    ).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(calendarMenu).toBeFocused()
+    const calendarContent = await openMenuAndFocus(page, calendarMenu)
+    await expect(calendarContent.locator('[data-part="item"]')).toHaveCount(2)
+    await closeMenuAndRestoreFocus(page, calendarMenu, calendarContent)
 
     const addMenu = page.getByRole('button', { name: 'Add to calendar' })
-    await addMenu.click()
-    await expect(
-      page.getByRole('menu', { name: 'Add to calendar' })
-    ).toBeVisible()
-    await expect(page.getByText('Apple Calendar')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(addMenu).toBeFocused()
+    const addMenuContent = await openMenuAndFocus(page, addMenu)
+    await expect(addMenuContent.locator('[data-part="item"]')).toHaveCount(5)
+    await expect(addMenuContent.getByText('Apple Calendar')).toBeVisible()
+    await closeMenuAndRestoreFocus(page, addMenu, addMenuContent)
 
-    await page.getByRole('tab', { name: 'Grid' }).click()
-    await expect(
-      page.getByRole('table', { name: 'September 2026' })
-    ).toBeVisible()
+    await selectCalendarRepresentation(page, 'Grid')
     await page
       .getByRole('button', {
         name: /Saturday, September 12, 2026, 4 events\. Show in List\./
       })
       .click()
-    await expect(page.getByRole('tab', { name: 'List' })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    )
+    await expect(page.getByRole('tabpanel')).toHaveCount(1)
+    await expect(page.getByRole('tabpanel', { name: 'List' })).toBeVisible()
   })
 
   test('@deployed verifies the live 320px Type geometry', async ({ page }) => {

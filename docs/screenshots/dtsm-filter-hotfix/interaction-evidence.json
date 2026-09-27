@@ -1,0 +1,77 @@
+{
+  "source": "Vite plus local Wrangler using the synchronized D1 catalog",
+  "desktop": {
+    "viewport": { "width": 1280, "height": 900 },
+    "sampledCheckboxRows": 8,
+    "minimumCheckboxRowHeight": 43.99858093261719,
+    "checkboxLabelOverlapCount": 0
+  },
+  "narrow": {
+    "viewport": { "width": 320, "height": 1000 },
+    "documentScrollWidth": 320,
+    "popover": {
+      "left": 20,
+      "right": 312,
+      "top": 408,
+      "bottom": 958,
+      "width": 292,
+      "height": 550
+    },
+    "scrollRegion": {
+      "left": 27,
+      "right": 305,
+      "width": 278,
+      "height": 430,
+      "scrollHeight": 1314
+    },
+    "minimumVisibleCheckboxRowHeight": 44,
+    "checkboxLabelOverlapCount": 0,
+    "longLabelContainment": {
+      "maximumLabelRight": 295,
+      "scrollRegionRight": 305,
+      "overflowingLabelCount": 0,
+      "wrappedLabelHeight": 40
+    },
+    "closeButton": {
+      "left": 253,
+      "right": 297,
+      "width": 44,
+      "height": 44
+    }
+  },
+  "search": {
+    "query": "sutter",
+    "visibleCheckboxRows": ["All places", "Sutter Medical Center San Mateo"]
+  },
+  "dismissalAndFocus": {
+    "escape": {
+      "before": "Search places input",
+      "closed": true,
+      "after": "Places: 4 selected trigger"
+    },
+    "outsideInteraction": {
+      "target": "Add to calendar trigger",
+      "placesClosed": true,
+      "after": "Add to calendar menu"
+    },
+    "closeButton": {
+      "coveredBy": "frontend App interaction test",
+      "closed": true,
+      "after": "Places trigger"
+    }
+  },
+  "selection": {
+    "bStreetIds": [1201, 1249, 1260, 1328, 3999],
+    "partialParentState": "indeterminate",
+    "eventsCategoryIds": [15, 25],
+    "promotionsCategoryIds": [14, 26]
+  },
+  "canonicalSubscriptionUrls": {
+    "default": "https://cal.janejeon.dev/dtsm-events.ics",
+    "unrestricted": "https://cal.janejeon.dev/dtsm-events.ics?scope=all",
+    "partialBStreet": "https://cal.janejeon.dev/dtsm-events.ics?venues=1137%2C1249%2C1260%2C1328%2C3999",
+    "events": "https://cal.janejeon.dev/dtsm-events.ics?venues=1137%2C1201%2C1249%2C1260%2C1328%2C3999&categories=15%2C25",
+    "promotions": "https://cal.janejeon.dev/dtsm-events.ics?venues=1137%2C1201%2C1249%2C1260%2C1328%2C3999&categories=14%2C26"
+  },
+  "runtimeLogs": []
+}

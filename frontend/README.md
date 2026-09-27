@@ -19,7 +19,7 @@ surface × viewport × interaction-state denominator executable.
   actions. `ExplorerFilters.tsx` owns per-calendar filter controls.
   `CalendarPanel.tsx` owns period and representation controls,
   `CalendarViews.tsx` owns Grid/List, their single date-group boundary and List
-  date-group and event-stack spacing, and busy-day overflow. `EventDetails.tsx` owns event
+  vertical rhythm, and busy-day overflow. `EventDetails.tsx` owns event
   representations and disclosure.
 - `content.ts` owns feed identity and reset-type labels; `use-media.ts` owns
   responsive observation. Component-specific interface copy stays with its
@@ -117,21 +117,19 @@ contrast.
 `test:browser` runs Playwright against the real Vite application and those
 production-shaped fixtures. Chromium covers the complete surface matrix;
 WebKit repeats the critical 320 px Type popover with mouse, keyboard, and
-iPhone-style touch input. The tests assert behavior and rendered geometry:
-alignment, containment, target size, text clearance, grouping, pointer versus
-keyboard focus, dismissal, focus return, and canonical subscription URLs.
-List spacing is owned by nested Stacks: the outer sequence owns date-boundary
-clearance and panel edges, and each date owns its event gap. Theme spacing roles
-map these relationships to Chakra's scale. Today text sizes naturally in flow.
+iPhone-style touch input. The tests use DOM rectangle and computed-style
+assertions for trigger/panel alignment, viewport containment, 44 px targets,
+control/label overlap, pointer versus keyboard focus, dismissal, focus return,
+List spacing, and wrapped boundary content. Visual review uses three current
+List renders, one at each supported width. They attach to the generated
+Playwright HTML report; open it with `npx playwright show-report`. The browser
+contract does not compare platform-specific image baselines.
 
-`npm run test:browser` also generates four representative composition captures
-in `test-results/` and attaches them to `playwright-report/`. Open the report
-with `npx playwright show-report frontend/playwright-report` from the repo root.
-CI uploads the report and diagnostics for every run. Review affected captures
-against the product intent, not just against the old picture. There are no
-committed pixel baselines, platform-specific regeneration steps, or duplicate
-review galleries. The [design contract](../docs/design/calendar-explorer.md#verification)
-states the claims and limits of these checks.
+Install the local browser binaries once with:
+
+```sh
+npx playwright install chromium webkit
+```
 
 The post-deploy browser smoke uses the immutable Version URL of the active
 frontend Worker. GitHub-hosted runners receive HTTP 403 from the production
@@ -141,5 +139,8 @@ checks the exact deployed assets and live discovery, adjusting only the
 backend CORS response for the Version URL's different origin. It does not
 assert that the custom domain's zone settings allow CI traffic.
 
-Historical screenshot galleries remain available in Git history; see
-[browser evidence](../docs/screenshots/README.md).
+The checked-in [calendar explorer captures](../docs/screenshots/calendar-explorer/README.md)
+and [DTSM filter captures](../docs/screenshots/dtsm-filter-hotfix/README.md)
+are historical implementation evidence. Current visual review uses the three
+List attachments in the browser report. After `npm run test:browser`, run
+`npx playwright show-report` from `frontend/`.

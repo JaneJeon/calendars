@@ -37,7 +37,9 @@ period and representation are global explorer state.
 
 Separate user-authored state from derived state. Discovery, reconciliation,
 responsive defaults, fixture setup, and fallback labels may alter rendering,
-but they cannot overwrite saved intent until the user changes it.
+but they cannot overwrite saved intent until the user changes it. Only the
+selected Grid or List panel is rendered; switching representation preserves
+the selected month and filters.
 
 ## Domain objects and representations
 
@@ -140,25 +142,18 @@ or emptiness never broadens or erases persisted intent.
   dates when today has no event. It sits at the start or end if all events are
   later or earlier. It is not an event, target, filter, or count item; its thin
   rules are decorative and its date text is available to assistive technology.
-  One List boundary owns every separator. It renders either a plain rule or the
-  Today-labelled rule; event rows draw no separator. The List is a sequence of
-  date groups and boundaries: `CalendarList` composes `ListDay` and
-  `ListBoundary`, and each date owns a stack of event disclosures.
-  This nesting expresses the reader's task: distinguish events within a day,
-  then distinguish one day from the next.
-
-  `calendar.eventStack` gives same-day events breathing room (spacing scale 3,
-  currently 12px). `calendar.dateBoundary` gives boundaries and panel edges
-  clearance (scale 4, currently 16px). An ordinary boundary therefore separates
-  dates by two clearances plus its rule. The Today boundary takes its natural
-  text height plus those same clearances. The outer Stack owns gap and edge
-  padding; the inner Stack owns event gap. Rows and boundaries need no positional
-  margins, and the label has no fixed height. Card padding uses the same spacing
-  scale. Different semantic relationships may have different distances.
-  An ordinary rule appears only between date groups, never after the last one.
+  The List stack owns sequence, vertical inset, and separation between a date
+  group and its boundary. Each date group's event stack owns the smaller peer
+  gap between same-day cards. That peer gap is at least the event card's own
+  vertical content inset. Changing a day therefore changes the date-group
+  relationship, while inserting or removing an event changes only that date's
+  event stack. These relationships use Chakra's spacing scale. The Today
+  boundary takes its height from its label, so longer or wrapped text carries
+  the neighboring date groups with it. Its text keeps the full stack gap on
+  either side. An ordinary rule appears only between date groups, never after
+  the last one.
   Other months, loading, failure, no-event months, and intentionally empty
   filters have no divider. Past event cards keep their normal appearance.
-
 - The month toolbar shows `Today · <short month and day>` with the full date and
   action in its accessible name. It scrolls with the page. From another month,
   Today changes only the preview month and, in List with events, focuses and
@@ -205,95 +200,35 @@ pairs. `frontend/src/theme.test.ts` calculates WCAG relative luminance and
 enforces the thresholds. Portaled surfaces require tokens at the document
 root.
 
-## Failure ledger
+## Design history
 
-Each row records the earliest wrong layer, the resulting rule, and the evidence
-needed to prevent recurrence.
+The former screenshot matrix and incident ledger duplicated implementation
+rules and retained superseded spacing requirements. The file's version history
+preserves that record. The component contracts above and executable browser
+checks below are the current requirements.
 
-<!-- prettier-ignore -->
-| Failure                                                      | Cause                                                                                                                                        | Contract produced                                                                                                                             | Required evidence                                                                                  |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Branding dominated event content                             | Decoration outranked user jobs                                                                                                               | Remove nonessential identity chrome                                                                                                           | First mobile viewport reaches useful controls/events                                               |
-| Title and distant Change control duplicated identity         | Selection and identity were split                                                                                                            | One adjacent identity trigger                                                                                                                 | Name, chevron, and menu read as one unit                                                           |
-| Calendar heading became a blue slab                          | Heading and selected-field semantics collapsed                                                                                               | Preserve heading geometry                                                                                                                     | Focus bounds remain conventional                                                                   |
-| Menu narrower than trigger                                   | Overlay geometry did not belong to its trigger                                                                                               | Width must be derived from trigger/layout                                                                                                     | Compare trigger and panel rectangles                                                               |
-| Disclosure pushed layout down                                | Menu was implemented as an accordion                                                                                                         | Floating surfaces cause zero reflow                                                                                                           | Compare coordinates before/after open                                                              |
-| Controls reset one another                                   | State ownership was undefined                                                                                                                | Record independent axes and preservation                                                                                                      | Exercise every axis in sequence                                                                    |
-| Month/Agenda mixed dimensions                                | Period and representation were conflated                                                                                                     | Use Grid/List for the same month                                                                                                              | Period label survives switching                                                                    |
-| Filters leaked or reset by calendar                          | Collection ownership was undefined                                                                                                           | Filters are per calendar                                                                                                                      | Switch away/back with custom filters                                                               |
-| Collapsed summary hid constraints                            | Visible scope contradicted hidden state                                                                                                      | Neutral scope or total active count                                                                                                           | Change every dimension, then collapse                                                              |
-| Last checkbox could not be cleared                           | Valid empty state was rejected                                                                                                               | Permit and explain zero selections                                                                                                            | Clear all in Grid and List                                                                         |
-| Preview and subscription diverged                            | Feed identity was split from supported filters                                                                                               | Supported filters drive both                                                                                                                  | Compare population and exact URL                                                                   |
-| Add action implied one-click support everywhere              | Platform flows differ                                                                                                                        | Honest webcal/copy guidance                                                                                                                   | Exercise every platform choice                                                                     |
-| Operable-looking controls were inert                         | Behavior was treated as polish                                                                                                               | Every apparent control is contractual                                                                                                         | Pointer and keyboard paths                                                                         |
-| Busy overflow disappeared                                    | Fixture stopped forcing the edge                                                                                                             | Preserve a day beyond display limit                                                                                                           | `+N` visible in default fixture                                                                    |
-| Mobile dots were tiny buttons                                | Indicator and target geometry were conflated                                                                                                 | Whole day is the target                                                                                                                       | Measure event-bearing days at 390/320                                                              |
-| Empty state differed by view                                 | Result behavior was view-specific                                                                                                            | Grid and List share result contract                                                                                                           | Reach empty in both                                                                                |
-| Dismissed content retained focus                             | Visual and keyboard state diverged                                                                                                           | Dismissal is focus-safe                                                                                                                       | Record active element after each path                                                              |
-| Detail floated beside the page                               | Position belonged to page, not event                                                                                                         | Anchor detail to its projection                                                                                                               | Open near top and after scrolling                                                                  |
-| Contextual detail became modal                               | Component was chosen before action meaning                                                                                                   | Derive relationship before component                                                                                                          | Surrounding calendar remains operable                                                              |
-| Pale action text measured 1.81:1                             | Accent chosen without its on-color                                                                                                           | Verify semantic color pairs                                                                                                                   | Computed contrast inventory                                                                        |
-| Category color had no wider system                           | Color was decorative                                                                                                                         | Theme all semantic roles together                                                                                                             | Review pairs and rendered states                                                                   |
-| First portaled menu was transparent                          | Tokens were scoped below portal host                                                                                                         | Tokens exist at portal root                                                                                                                   | Inspect computed overlay background                                                                |
-| Popover X looked like a stray field                          | Generic icon geometry replaced native affordance                                                                                             | Use CloseButton/CloseTrigger                                                                                                                  | Alignment, hover, focus, Escape, return                                                            |
-| Fixture parser ignored canonical URL                         | Rendering bypassed feed identity                                                                                                             | Fixtures filter from the real URL first                                                                                                       | Population and URL change together                                                                 |
-| 320px day target measured 41px                               | Borders/gutters consumed target geometry                                                                                                     | Measure rendered targets                                                                                                                      | ≥44px without document overflow                                                                    |
-| Inline detail row was not its trigger                        | Visual and accessibility states were split                                                                                                   | Use Collapsible trigger anatomy                                                                                                               | `aria-expanded`, controls, focus return                                                            |
-| Overflow Back left focus on body                             | Replaced DOM had no destination                                                                                                              | Explicit one-shot focus targets                                                                                                               | Collection → detail → Back → Escape                                                                |
-| Focus restoration repeated later                             | Consumed target was retained                                                                                                                 | Clear targets after one use                                                                                                                   | Parent re-render does not steal focus                                                              |
-| Empty discovery rewrote saved filters                        | Derived state was persisted as intent                                                                                                        | Persist only user changes                                                                                                                     | Reload through empty/failed discovery                                                              |
-| Long-lived event expanded before month bounds                | Preview bounds came too late                                                                                                                 | Intersect before projection                                                                                                                   | Multi-century fixture remains bounded                                                              |
-| Month claimed grid semantics without rows                    | Roles were applied at the surface                                                                                                            | Use truthful table structure                                                                                                                  | 1 table, 7 rows, 7 headers, 42 cells                                                               |
-| Static reviews passed untested interactions                  | Appearance was mistaken for completion                                                                                                       | Interaction QA plus fresh review                                                                                                              | Logs, keyboard, focus, state, geometry                                                             |
-| Invented taxonomy hid production aliases/tags                | Remote D1 was never inspected                                                                                                                | Query production before UI taxonomy                                                                                                           | SQL, Wrangler JSON, grouped IDs                                                                    |
-| Menu indicators crossed option labels                        | Custom padding overwrote reserved anatomy                                                                                                    | Preserve compound geometry                                                                                                                    | Zero control/label overlap                                                                         |
-| Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Trigger/panel, row/control/label, focus-style, and viewport assertions |
-| Today cue duplicated a date boundary (#43) | Row and cue each owned a separator | One owner renders ordinary or labelled boundaries | One rule between dates, no trailing ordinary rule |
-| Equal 8px gaps still felt cramped (#43 follow-up) | Normalization was mistaken for numerical equality; tests encoded the chosen value rather than the reading hierarchy | Model event siblings and date boundaries separately; parent stacks own spacing | Same-day breathing room, stronger between-day separation, natural label height, readable long cards |
-| Screenshot churn dominated review | Every state became a stored image and every image became a review obligation | Choose evidence by the claim it can test | Assertions for behavior/geometry; a small current composition sample for visual judgment |
+## Executable product contract
 
-## Verification
+Behavior and geometry checks cover the meaningful surfaces at 1280, 390, and
+320px, including menus, filters, Grid/List, disclosures, Today transitions,
+focus, target size, overflow, and the exact subscription URL. WebKit repeats the
+320px Type interaction for pointer, keyboard, and touch. These checks run
+against the real Vite application and deterministic production-shaped fixtures.
 
-Start with the claim being checked. A correct change preserves an application
-that makes sense on its own. Matching a previous image only proves stability;
-a passing procedure does not establish that the intended product is good.
+The browser suite checks behavior, DOM relationships, rectangles, and computed
+styles. It does not keep an image baseline for every state. The three List
+captures at desktop, 390px, and 320px attach to the existing Playwright report.
+They review composition at each width; executable assertions cover state changes
+and relationships. No platform-specific screenshot regeneration is required.
 
-| Claim                                                 | Executable evidence                                                                                                                                         | Human/agent judgment still needed                                             |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| One date and consistent action meaning                | LA/UTC, month, midnight, selection and focus tests                                                                                                          | Does Today help orientation without dominating events?                        |
-| Events remain readable and dates form distinct groups | Same-day gap ≥ card vertical padding and 12px; between-day separation > twice same-day gap; equal boundary/edge clearance; actual label bounds; no overflow | Is the density comfortable and the hierarchy clear with long and short cards? |
-| Disclosure preserves context                          | Open/close, heading, selection and focus-return checks on desktop and narrow List; Grid overflow and Back                                                   | Does it read as detail of that event?                                         |
-| Filters remain usable                                 | Places/Type/Organizer geometry at 390/320, long/search/partial states; Type pointer/keyboard plus WebKit touch; desktop visibility and dismissal            | Review the affected filter surface when its design changes                    |
-| Subscription matches the population                   | Canonical URL and filtering unit tests; exact browser URL assertions                                                                                        | No screenshot needed                                                          |
+Before completion:
 
-`frontend/e2e/calendar-explorer.visual.spec.ts` and
-`frontend/e2e/today-divider.visual.spec.ts` run these checks against the real
-Vite application. Today placement and action checks cover 1280, 390, and 320px,
-plus beginning/end, empty/error, other month, and rollover cases. Unit tests
-cover loading and intentionally empty filters. Tests assert relationships in
-rendered geometry without importing theme values as their expected answer.
-
-`frontend/e2e/composition.spec.ts` produces four review images: List at 1280,
-390, and 320px, and desktop Grid. These are **review inputs**, not golden-image
-assertions. They live in ignored test output, attached to the Playwright report
-and uploaded by CI on success or failure. Inspect the compositions affected by
-a change. Add a focused temporary capture only when a specific unanswered
-question needs it. Do not multiply captures by every test state or platform,
-commit galleries, or require baseline updates for intended spacing changes.
-Failures retain screenshots, traces, and video for diagnosis.
-
-Before completion, run lint, unit coverage, build, the browser contract, and
-backend e2e. Check the production bundle excludes fixture switches. Review the
-current affected composition independently of the diff, then inspect the diff
-for unintended changes. State what the assertions establish and what visual
-judgment found. A changed model also requires reviewing its test expectations;
-do not carry a mistaken assumption forward just because it is executable.
-
-Fresh review should address a concrete unresolved question. A fixed number of
-reviewers or images is not a completion criterion. After merge, CI runs the
-320px Type geometry smoke against the exact deployed Worker Version URL; the
-custom domain still needs an ordinary browser check because Bot Fight Mode
-challenges GitHub-hosted runners.
+1. run lint, 100% unit coverage, build, browser contract, and backend e2e;
+2. inspect the three representative List renders at 1280, 390, and 320px;
+3. verify the production bundle contains no fixture switches;
+4. after merge, run the 320px Type geometry smoke against the exact deployed
+   Worker Version URL; verify the custom domain separately from a normal
+   browser because its Bot Fight Mode challenges GitHub-hosted runners.
 
 ## Behavioral references
 
