@@ -112,7 +112,8 @@ contrast.
 
 `test:browser` runs Playwright against the real Vite application and those
 production-shaped fixtures. Chromium covers the complete surface matrix;
-WebKit repeats the critical 320 px Type popover. The tests combine screenshot
+WebKit repeats the critical 320 px Type popover with mouse, keyboard, and
+iPhone-style touch input. The tests combine screenshot
 snapshots with DOM rectangle and computed-style assertions for trigger/panel
 alignment, viewport containment, 44 px targets, control/label overlap, pointer
 versus keyboard focus, dismissal, and focus return. Update snapshots only for

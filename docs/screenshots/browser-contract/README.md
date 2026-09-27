@@ -7,7 +7,7 @@ from the real Vite application with production-shaped development fixtures.
 The suite covers the exact combinations that the earlier manual review left
 implicit: surface, viewport, input modality, and selection/search state.
 Chromium exercises desktop, 390px, and 320px. WebKit repeats the critical 320px
-Type pointer and keyboard-focus states. Darwin and Linux baselines are kept
+Type pointer, keyboard-focus, and touch states. Darwin and Linux baselines are kept
 separately so local macOS review and Linux CI compare like with like.
 
 The images are only half of the contract. The same tests assert trigger/panel

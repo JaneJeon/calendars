@@ -219,15 +219,15 @@ needed to prevent recurrence.
 A checklist of dimensions is insufficient. Coverage is the explicit combination
 of surface, viewport, and state. A screenshot proves only the captured cell.
 
-| Surface              | Desktop 1280 | Mobile 390 | Mobile 320        | Required states                                 |
-| -------------------- | ------------ | ---------- | ----------------- | ----------------------------------------------- |
-| Calendar menu        | Yes          | Smoke      | Smoke             | Open, selected, keyboard, dismissal             |
-| Add menu             | Yes          | Smoke      | Smoke             | Open, actions, dismissal                        |
-| Places               | Yes          | Yes        | Yes               | Default, partial/indeterminate, search          |
-| Type                 | Yes          | Yes        | Chromium + WebKit | Pointer-open, keyboard focus, changed selection |
-| Organizer            | Yes          | Yes        | Yes               | Default, search, long label                     |
-| Grid/overflow/detail | Yes          | Compact    | Compact           | Busy collection, detail, Back/focus             |
-| List/detail          | Yes          | Yes        | Smoke             | Inline disclosure and focus                     |
+| Surface | Desktop 1280 | Mobile 390 | Mobile 320 |
+| --- | --- | --- | --- |
+| Calendar menu | Open, Escape/focus | Open, Escape/focus | Open, Escape/focus |
+| Add menu | Open, Escape/focus | Open, Escape/focus | Open, Escape/focus |
+| Places | Default | Default, search, partial | Default, search, partial |
+| Type | Default | Pointer, keyboard focus, changed selection | Pointer, keyboard focus, changed selection, WebKit touch |
+| Organizer | Default | Default, long-label search | Default, long-label search |
+| Grid/overflow/detail | Hidden collection, event detail, Back | — | Compact Grid to List |
+| List/detail | Event detail | Inline detail | Inline detail |
 
 `frontend/e2e/calendar-explorer.visual.spec.ts` executes this matrix against
 the real Vite application and deterministic production-shaped fixtures.

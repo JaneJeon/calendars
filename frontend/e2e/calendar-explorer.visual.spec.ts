@@ -146,6 +146,28 @@ async function expectNarrowFilterGeometry(
 }
 
 test.describe('filter popover visual contract', () => {
+  test('@touch-critical keeps the 320px Type panel aligned after a tap', async ({
+    page
+  }) => {
+    await openFixture(page, { width: 320, height: 1000 })
+    const disclosure = page.getByRole('button', { name: /Filter events/ })
+    await disclosure.tap()
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+
+    const trigger = page.getByRole('button', { name: 'Type: All types' })
+    await trigger.tap()
+    const popover = await visibleFilterPopover(page, 'type')
+    await expectNarrowFilterGeometry(page, trigger, popover)
+    const allTypesRow = popover
+      .getByTestId('filter-checkbox-row')
+      .filter({ hasText: 'All types' })
+    expect((await outline(allTypesRow)).style).toBe('none')
+    expect(
+      (await outline(allTypesRow.locator('[data-part="control"]'))).style
+    ).toBe('none')
+    await expect(page).toHaveScreenshot('type-tap-320.png')
+  })
+
   test('@webkit-critical keeps the 320px Type popover aligned and focus-safe', async ({
     page
   }) => {
@@ -184,6 +206,43 @@ test.describe('filter popover visual contract', () => {
       .getByRole('button', { name: 'Close type filters' })
       .click()
     await expect(keyboardPopover).toBeHidden()
+    await expect(trigger).toBeFocused()
+  })
+
+  test('keeps the 390px Type popover aligned for pointer and keyboard', async ({
+    page
+  }) => {
+    await openFixture(page, { width: 390, height: 1000 })
+    await openMobileFilters(page)
+    const trigger = page.getByRole('button', { name: 'Type: All types' })
+
+    await trigger.click()
+    const pointerPopover = await visibleFilterPopover(page, 'type')
+    await expectNarrowFilterGeometry(page, trigger, pointerPopover)
+    const pointerRow = pointerPopover
+      .getByTestId('filter-checkbox-row')
+      .filter({ hasText: 'All types' })
+    expect((await outline(pointerRow)).style).toBe('none')
+    expect(
+      (await outline(pointerRow.locator('[data-part="control"]'))).style
+    ).toBe('none')
+    await expect(page).toHaveScreenshot('type-pointer-390.png')
+
+    await page.keyboard.press('Escape')
+    await expect(trigger).toBeFocused()
+    await trigger.press('Enter')
+    const keyboardPopover = await visibleFilterPopover(page, 'type')
+    const keyboardRow = keyboardPopover
+      .getByTestId('filter-checkbox-row')
+      .filter({ hasText: 'All types' })
+    const keyboardOutline = await outline(
+      keyboardRow.locator('[data-part="control"]')
+    )
+    expect((await outline(keyboardRow)).style).toBe('none')
+    expect(keyboardOutline.style).not.toBe('none')
+    expect(keyboardOutline.width).toBeGreaterThanOrEqual(2)
+    await expect(page).toHaveScreenshot('type-keyboard-focus-390.png')
+    await page.keyboard.press('Escape')
     await expect(trigger).toBeFocused()
   })
 
@@ -321,11 +380,32 @@ test.describe('filter popover visual contract', () => {
     await expect(page).toHaveScreenshot('desktop-list-detail.png')
   })
 
-  test('covers narrow List event disclosure', async ({ page }) => {
+  for (const width of [390, 320]) {
+    test(`covers narrow List event disclosure at ${width}px`, async ({
+      page
+    }) => {
+      await openFixture(page, { width, height: 1000 })
+      await page.getByRole('tab', { name: 'List' }).click()
+      await page.getByRole('button', { name: /Yoga in the Park/ }).click()
+      await expect(page).toHaveScreenshot(`mobile-list-detail-${width}.png`)
+    })
+  }
+
+  test('covers narrow menus at 390px', async ({ page }) => {
     await openFixture(page, { width: 390, height: 1000 })
-    await page.getByRole('tab', { name: 'List' }).click()
-    await page.getByRole('button', { name: /Yoga in the Park/ }).click()
-    await expect(page).toHaveScreenshot('mobile-list-detail-390.png')
+    const calendarMenu = page.getByRole('button', {
+      name: 'Downtown San Mateo events'
+    })
+    await calendarMenu.click()
+    await expect(page).toHaveScreenshot('mobile-calendar-menu-390.png')
+    await page.keyboard.press('Escape')
+    await expect(calendarMenu).toBeFocused()
+
+    const addMenu = page.getByRole('button', { name: 'Add to calendar' })
+    await addMenu.click()
+    await expect(page).toHaveScreenshot('mobile-add-menu-390.png')
+    await page.keyboard.press('Escape')
+    await expect(addMenu).toBeFocused()
   })
 
   test('covers narrow menus and compact Grid at 320px', async ({ page }) => {

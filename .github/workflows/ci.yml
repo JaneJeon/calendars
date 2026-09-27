@@ -95,7 +95,7 @@ jobs:
             BASE_SHA=$(git rev-list --max-parents=0 HEAD)
             echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
           fi
-          affected=$(npx nx show projects --affected --base="$BASE_SHA" --head="$HEAD_SHA")
+          affected=$(npx nx show projects --affected --base="$BASE_SHA" --head="$HEAD_SHA" --json)
           echo "$affected"
           if [[ "$affected" == *'"backend"'* ]]; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
