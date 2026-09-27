@@ -18,9 +18,9 @@ surface × viewport × interaction-state denominator executable.
 - `components/ExplorerHeader.tsx` owns calendar identity and subscription
   actions. `ExplorerFilters.tsx` owns per-calendar filter controls.
   `CalendarPanel.tsx` owns period and representation controls,
-  `CalendarViews.tsx` owns Grid/List, their single date-group boundary, and
-  busy-day overflow, and
-  `EventDetails.tsx` owns event representations and disclosure.
+  `CalendarViews.tsx` owns Grid/List, their single date-group boundary and List
+  vertical rhythm, and busy-day overflow. `EventDetails.tsx` owns event
+  representations and disclosure.
 - `content.ts` owns feed identity and reset-type labels; `use-media.ts` owns
   responsive observation. Component-specific interface copy stays with its
   component.

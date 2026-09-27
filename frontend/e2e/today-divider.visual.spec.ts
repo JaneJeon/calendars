@@ -79,33 +79,40 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
   expect(
     await divider.evaluate(element => element.previousElementSibling?.id)
   ).toBe('calendar-list-day-2026-09-19')
+  expect(await row26.evaluate(element => element.nextElementSibling)).toBeNull()
   const [
+    list,
     normalRule,
     normalBefore,
     normalAfter,
+    secondSameDay,
     boundaryBefore,
     boundaryAfter,
     rule
   ] = await Promise.all([
+    page.getByRole('tabpanel', { name: 'List' }).boundingBox(),
     ordinaryRule.boundingBox(),
     row5.getByRole('button').first().boundingBox(),
     row12.getByRole('button').first().boundingBox(),
+    row12.getByRole('button').nth(1).boundingBox(),
     row19.getByRole('button').first().boundingBox(),
     row26.getByRole('button').first().boundingBox(),
     divider.locator('[aria-hidden="true"]').first().boundingBox()
   ])
   const normalLine = normalRule!.y + normalRule!.height / 2
   const boundaryLine = rule!.y + rule!.height / 2
-  expect(
-    Math.abs(
-      boundaryLine -
-        (boundaryBefore!.y + boundaryBefore!.height) -
-        (normalLine - (normalBefore!.y + normalBefore!.height))
-    )
-  ).toBeLessThanOrEqual(2)
-  expect(
-    Math.abs(boundaryAfter!.y - boundaryLine - (normalAfter!.y - normalLine))
-  ).toBeLessThanOrEqual(2)
+  const sameDayGap = secondSameDay!.y - (normalAfter!.y + normalAfter!.height)
+  expect(sameDayGap).toBe(8)
+  const gaps = [
+    normalBefore!.y - list!.y,
+    normalLine - (normalBefore!.y + normalBefore!.height),
+    normalAfter!.y - normalLine,
+    boundaryLine - (boundaryBefore!.y + boundaryBefore!.height),
+    boundaryAfter!.y - boundaryLine,
+    list!.y + list!.height - (boundaryAfter!.y + boundaryAfter!.height)
+  ]
+  for (const gap of gaps)
+    expect(Math.abs(gap - sameDayGap)).toBeLessThanOrEqual(2)
 }
 
 for (const [width, name] of [

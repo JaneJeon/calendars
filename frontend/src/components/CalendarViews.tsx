@@ -23,6 +23,9 @@ import { controlProps, eventTone, focusRing } from '../theme'
 import { EventTrigger } from './EventDetails'
 import { OverflowPopover } from './OverflowPopover'
 
+const LIST_RHYTHM_PX = 8
+const LIST_LABEL_BOUNDARY_HEIGHT_PX = LIST_RHYTHM_PX * 2 + 1
+
 export function CalendarGrid(props: {
   month: string
   todayKey: string
@@ -207,7 +210,7 @@ export function CalendarList(props: {
       : firstOnOrAfter
     : null
   return (
-    <Stack w="min(900px, calc(100% - 28px))" mx="auto" py="12px" gap="0">
+    <Stack w="min(900px, calc(100% - 28px))" mx="auto" gap="0">
       {props.todayKey && todayBoundary === 0 && (
         <ListBoundary dateKey={props.todayKey} placement="start" />
       )}
@@ -220,7 +223,7 @@ export function CalendarList(props: {
               md: '72px minmax(0,1fr)'
             }}
             gap={{ base: '10px', md: '18px' }}
-            py="16px"
+            py={`${LIST_RHYTHM_PX}px`}
           >
             <Box pt="3px">
               <Text
@@ -241,7 +244,7 @@ export function CalendarList(props: {
                 {Number(day.slice(-2))}
               </Text>
             </Box>
-            <Stack gap="7px">
+            <Stack gap={`${LIST_RHYTHM_PX}px`}>
               {events.map(item => (
                 <EventTrigger
                   key={item.key}
@@ -254,10 +257,12 @@ export function CalendarList(props: {
               ))}
             </Stack>
           </Grid>
-          <ListBoundary
-            dateKey={todayBoundary === index + 1 ? props.todayKey : null}
-            placement={index === days.length - 1 ? 'end' : 'between'}
-          />
+          {(index + 1 < days.length || todayBoundary === index + 1) && (
+            <ListBoundary
+              dateKey={todayBoundary === index + 1 ? props.todayKey : null}
+              placement={index + 1 === days.length ? 'end' : 'between'}
+            />
+          )}
         </Fragment>
       ))}
     </Stack>
@@ -277,9 +282,9 @@ function ListBoundary(props: {
       aria-label={`Today, ${fullDate(props.dateKey)}`}
       align="center"
       gap="8px"
-      h="21px"
-      mt={props.placement === 'start' ? '0' : '-10px'}
-      mb={props.placement === 'end' ? '0' : '-10px'}
+      h={`${LIST_LABEL_BOUNDARY_HEIGHT_PX}px`}
+      mt={props.placement === 'start' ? '0' : `-${LIST_RHYTHM_PX}px`}
+      mb={props.placement === 'end' ? '0' : `-${LIST_RHYTHM_PX}px`}
       position="relative"
       zIndex="1"
       scrollMarginTop="18px"
@@ -290,6 +295,7 @@ function ListBoundary(props: {
         color="calendar.link"
         fontSize="12px"
         fontWeight="500"
+        lineHeight={`${LIST_LABEL_BOUNDARY_HEIGHT_PX}px`}
         whiteSpace="nowrap"
       >
         Today · {shortWeekday(props.dateKey)}, {shortDate(props.dateKey)}
