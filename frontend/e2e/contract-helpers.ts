@@ -15,9 +15,10 @@ export async function selectCalendarRepresentation(
 
 export async function openMenuAndFocus(page: Page, trigger: Locator) {
   await trigger.click()
-  const menu = page
-    .locator('[data-scope="menu"][data-part="content"]:visible')
-    .last()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  const menuId = await trigger.getAttribute('aria-controls')
+  expect(menuId).toBeTruthy()
+  const menu = page.locator(`[id="${menuId}"]`)
   await expect(menu).toBeVisible()
   await expect(menu).toHaveAttribute('data-state', 'open')
   await expect(menu.locator('[data-part="item"]').first()).toBeVisible()
