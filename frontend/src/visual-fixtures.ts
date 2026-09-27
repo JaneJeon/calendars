@@ -210,6 +210,43 @@ const dtsmEvents: FixtureEvent[] = [
   }
 ]
 
+function boundaryDensityEvent(
+  id: string,
+  day: number,
+  title: string,
+  location = 'Central Park'
+): FixtureEvent {
+  return {
+    id,
+    day,
+    title,
+    categories: ['Events'],
+    categoryIds: [15],
+    venueId: 1137,
+    organizerId: 1138,
+    location
+  }
+}
+
+const boundaryDensityEvents = [
+  boundaryDensityEvent('market-12', 12, 'Second Saturday Market'),
+  boundaryDensityEvent(
+    'music-12',
+    12,
+    'Community arts and live music on the plaza',
+    'San Mateo Central Park, 50 East Fifth Avenue'
+  ),
+  boundaryDensityEvent('community-17', 17, 'Community Art Walk'),
+  boundaryDensityEvent('art-19', 19, 'Kids’ Art Lab'),
+  boundaryDensityEvent(
+    'workshop-19',
+    19,
+    'Family art workshop with guest artists',
+    'B Street between 1st and 3rd avenues'
+  ),
+  boundaryDensityEvent('cleanup-26', 26, 'Neighborhood cleanup')
+]
+
 const codexEvents: FixtureEvent[] = [
   {
     id: 'regular',
@@ -247,12 +284,15 @@ function selectedIds(url: URL, name: string): number[] | null {
   return value ? value.split(',').map(Number) : null
 }
 
-function filteredDtsmEvents(url: URL): FixtureEvent[] {
+function filteredDtsmEvents(
+  url: URL,
+  sourceEvents: FixtureEvent[] = dtsmEvents
+): FixtureEvent[] {
   const venueIds = selectedIds(url, 'venues')
   const organizerIds = selectedIds(url, 'organizers')
   const categoryIds = selectedIds(url, 'categories')
   const defaultVenues = !url.search && !url.searchParams.has('scope')
-  return dtsmEvents.filter(
+  return sourceEvents.filter(
     event =>
       (venueIds?.includes(event.venueId) ??
         (!defaultVenues || defaultVenueIds.has(event.venueId))) &&
@@ -275,9 +315,11 @@ export function visualCalendar(
             const types = url.searchParams.get('types')?.split(',')
             return !types || types.includes(event.categories[0]!)
           })
-        : filteredDtsmEvents(url).filter(
-            event => scenario !== 'long' || event.id === 'long'
-          )
+        : scenario === 'boundary-density'
+          ? filteredDtsmEvents(url, boundaryDensityEvents)
+          : filteredDtsmEvents(url).filter(
+              event => scenario !== 'long' || event.id === 'long'
+            )
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

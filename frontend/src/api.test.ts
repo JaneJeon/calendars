@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { projectEvents } from './calendar'
 import {
   CALENDAR_API_ORIGIN,
   CalendarRequestError,
@@ -139,6 +140,50 @@ describe('calendar API client', () => {
     await expect(
       fetchCalendar('https://cal.test/feed.ics', 'dtsm', undefined, html)
     ).rejects.toBeInstanceOf(Error)
+  })
+
+  it('keeps the sparse boundary fixture grouped and filterable', async () => {
+    window.history.replaceState({}, '', '/?__scenario=boundary-density')
+    const request = vi.fn<typeof fetch>()
+    const events = await fetchCalendar(
+      'http://localhost:8787/dtsm-events.ics',
+      'dtsm',
+      undefined,
+      request
+    )
+    const dateCounts = (source: typeof events) => {
+      const counts = new Map<string, number>()
+      for (const projection of projectEvents(source)) {
+        const day = projection.dateKey.slice(-2)
+        counts.set(day, (counts.get(day) ?? 0) + 1)
+      }
+      return Object.fromEntries(counts)
+    }
+    expect(dateCounts(events)).toEqual({
+      '12': 2,
+      '17': 1,
+      '19': 2,
+      '26': 1
+    })
+    expect(
+      dateCounts(
+        await fetchCalendar(
+          'http://localhost:8787/dtsm-events.ics?venues=1137&categories=15',
+          'dtsm',
+          undefined,
+          request
+        )
+      )
+    ).toEqual(dateCounts(events))
+    expect(
+      await fetchCalendar(
+        'http://localhost:8787/dtsm-events.ics?venues=1249&categories=15',
+        'dtsm',
+        undefined,
+        request
+      )
+    ).toEqual([])
+    expect(request).not.toHaveBeenCalled()
   })
 
   it('uses development fixtures for busy, empty, and failure states', async () => {

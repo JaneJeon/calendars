@@ -142,16 +142,18 @@ or emptiness never broadens or erases persisted intent.
   dates when today has no event. It sits at the start or end if all events are
   later or earlier. It is not an event, target, filter, or count item; its thin
   rules are decorative and its date text is available to assistive technology.
-  The List stack owns sequence, vertical inset, and separation between a date
-  group and its boundary. Each date group's event stack owns the smaller peer
-  gap between same-day cards. That peer gap is at least the event card's own
-  vertical content inset. Changing a day therefore changes the date-group
-  relationship, while inserting or removing an event changes only that date's
-  event stack. These relationships use Chakra's spacing scale. The Today
-  boundary takes its height from its label, so longer or wrapped text carries
-  the neighboring date groups with it. Its text keeps the full stack gap on
-  either side. An ordinary rule appears only between date groups, never after
-  the last one.
+  The List stack owns sequence, vertical inset, and the gap on each side of an
+  ordinary date rule. Each date group's event stack owns separation between
+  same-day cards. Peer separation is at least the event card's own vertical
+  content inset. Measure a date change as one perceived break from the last card
+  to the next first card, including both gaps and the rule. It is larger than a
+  same-day gap but less than twice as large, so a date change reads without
+  making sparse groups feel isolated. Inserting or removing an event changes
+  only its date group. These relationships use Chakra's spacing scale. The
+  Today boundary takes its height from its label, so longer or wrapped text
+  carries neighboring groups with it. Text clearance remains at least the
+  event card's vertical content inset. An ordinary rule appears only between
+  date groups, never after the last one.
   Other months, loading, failure, no-event months, and intentionally empty
   filters have no divider. Past event cards keep their normal appearance.
 - The month toolbar shows `Today · <short month and day>` with the full date and
@@ -216,10 +218,21 @@ focus, target size, overflow, and the exact subscription URL. WebKit repeats the
 against the real Vite application and deterministic production-shaped fixtures.
 
 The browser suite checks behavior, DOM relationships, rectangles, and computed
-styles. It does not keep an image baseline for every state. The three List
-captures at desktop, 390px, and 320px attach to the existing Playwright report.
-They review composition at each width; executable assertions cover state changes
-and relationships. No platform-specific screenshot regeneration is required.
+styles. Its generated captures are inputs to visual judgment, not image
+baselines for every state. Inspect the List at desktop, 390px, and 320px with
+content shaped like the live calendar: sparse single-event dates as well as a
+busy day. A fixture concentrated on one busy date can hide the effect of
+repeated date boundaries.
+
+When a PR changes the visible application, put a small, relevant before/after
+or current-state comparison directly in its description, near the top. Label
+what the reviewer should notice. Upload those images as PR attachments so they
+render inline without becoming committed test assets. The Playwright report
+holds additional captures and diagnostics; a reviewer should be able to judge
+the affected composition without downloading it. Visual inspection may reject
+the model even when geometry assertions pass. Platform-specific pixel baselines
+are reserved for a shared design primitive whose exact rendering is the claim
+being protected.
 
 Before completion:
 

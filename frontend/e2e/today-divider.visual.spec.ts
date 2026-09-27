@@ -8,12 +8,17 @@ import {
 const noTodayEvent = new Date('2026-09-20T12:00:00-07:00')
 const todayEvent = new Date('2026-09-26T12:00:00-07:00')
 
-async function openFixture(page: Page, width: number, now: Date) {
+async function openFixture(
+  page: Page,
+  width: number,
+  now: Date,
+  scenario = 'busy'
+) {
   await page.setViewportSize({ width, height: 1000 })
   await page.clock.setFixedTime(now)
-  await page.goto('/?__scenario=busy')
+  await page.goto(`/?__scenario=${scenario}`)
   await expect(
-    page.getByRole('button', { name: /Yoga in the Park/ })
+    page.getByRole('button', { name: /Neighborhood cleanup/ })
   ).toBeVisible()
 }
 
@@ -87,11 +92,11 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
   const [
     list,
     normalRule,
-    normalBefore,
-    normalAfter,
-    secondSameDay,
-    boundaryBefore,
-    boundaryAfter,
+    beforeCard,
+    afterCard,
+    secondPeer,
+    todayBefore,
+    todayAfter,
     label,
     firstCard,
     lastCard
@@ -107,7 +112,7 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
     row5.getByRole('button').first().boundingBox(),
     row26.getByRole('button').first().boundingBox()
   ])
-  const sameDayGap = secondSameDay!.y - (normalAfter!.y + normalAfter!.height)
+  const sameDayGap = secondPeer!.y - (afterCard!.y + afterCard!.height)
   const cardInset = await row12
     .getByRole('button')
     .first()
@@ -116,14 +121,15 @@ async function expectBoundaryRhythm(page: Page, divider: Locator) {
     )
   expect(cardInset).toBeGreaterThan(0)
   expect(sameDayGap).toBeGreaterThanOrEqual(cardInset)
-  const ruleGapBefore = normalRule!.y - (normalBefore!.y + normalBefore!.height)
-  const ruleGapAfter = normalAfter!.y - (normalRule!.y + normalRule!.height)
-  const todayGapBefore = label!.y - (boundaryBefore!.y + boundaryBefore!.height)
-  const todayGapAfter = boundaryAfter!.y - (label!.y + label!.height)
-  expect(ruleGapBefore).toBeGreaterThan(sameDayGap)
-  expect(ruleGapAfter).toBeGreaterThan(sameDayGap)
-  expect(todayGapBefore).toBeGreaterThan(sameDayGap)
-  expect(todayGapAfter).toBeGreaterThan(sameDayGap)
+  const ordinaryDateBreak = afterCard!.y - (beforeCard!.y + beforeCard!.height)
+  const ruleGapBefore = normalRule!.y - (beforeCard!.y + beforeCard!.height)
+  const ruleGapAfter = afterCard!.y - (normalRule!.y + normalRule!.height)
+  const todayGapBefore = label!.y - (todayBefore!.y + todayBefore!.height)
+  const todayGapAfter = todayAfter!.y - (label!.y + label!.height)
+  expect(ordinaryDateBreak).toBeGreaterThan(sameDayGap)
+  expect(ordinaryDateBreak).toBeLessThan(2 * sameDayGap)
+  expect(todayGapBefore).toBeGreaterThanOrEqual(cardInset)
+  expect(todayGapAfter).toBeGreaterThanOrEqual(cardInset)
   expect(Math.abs(ruleGapBefore - todayGapBefore)).toBeLessThanOrEqual(1)
   expect(Math.abs(ruleGapAfter - todayGapAfter)).toBeLessThanOrEqual(1)
   const edgeTop = firstCard!.y - list!.y
@@ -142,9 +148,7 @@ for (const [width, name] of [
     ['no-today-event', noTodayEvent, '2026-09-26', 'Today · Sun, Sep 20'],
     ['today-event', todayEvent, '2026-09-26', 'Today · Sat, Sep 26']
   ] as const) {
-    test(`${name} List shows the ${state} date boundary`, async ({
-      page
-    }, testInfo) => {
+    test(`${name} List shows the ${state} date boundary`, async ({ page }) => {
       const errors: string[] = []
       page.on('pageerror', error => errors.push(error.message))
       page.on('console', message => {
@@ -173,19 +177,115 @@ for (const [width, name] of [
         await page.evaluate(() => document.documentElement.scrollWidth)
       ).toBe(width)
       expect(errors).toEqual([])
-      if (state === 'no-today-event')
-        await testInfo.attach(`List composition at ${width}px`, {
-          body: await page.screenshot({
-            fullPage: true,
-            animations: 'disabled'
-          }),
-          contentType: 'image/png'
-        })
       expect(await subscriptionUrl(page)).toBe(
         'webcal://localhost:8787/dtsm-events.ics'
       )
     })
   }
+}
+
+for (const width of [1280, 390, 320]) {
+  test(`sparse 2/1/2/1 date groups at ${width}px`, async ({
+    page
+  }, testInfo) => {
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+    await openFixture(
+      page,
+      width,
+      new Date('2026-09-30T12:00:00-07:00'),
+      'boundary-density'
+    )
+    await selectCalendarRepresentation(page, 'List')
+
+    const day12 = page.locator('#calendar-list-day-2026-09-12')
+    const day17 = page.locator('#calendar-list-day-2026-09-17')
+    const day19 = page.locator('#calendar-list-day-2026-09-19')
+    const day26 = page.locator('#calendar-list-day-2026-09-26')
+    for (const [group, count] of [
+      [day12, 2],
+      [day17, 1],
+      [day19, 2],
+      [day26, 1]
+    ] as const)
+      await expect(group.getByRole('button')).toHaveCount(count)
+
+    const [first12, second12, first19, second19] = await Promise.all([
+      day12.getByRole('button').first().boundingBox(),
+      day12.getByRole('button').nth(1).boundingBox(),
+      day19.getByRole('button').first().boundingBox(),
+      day19.getByRole('button').nth(1).boundingBox()
+    ])
+    const sameDayGaps = [
+      second12!.y - (first12!.y + first12!.height),
+      second19!.y - (first19!.y + first19!.height)
+    ]
+    const cardInset = await day12
+      .getByRole('button')
+      .first()
+      .evaluate(element =>
+        Number.parseFloat(getComputedStyle(element).paddingTop)
+      )
+    const sameDayGap = Math.min(...sameDayGaps)
+    expect(sameDayGap).toBeGreaterThanOrEqual(cardInset)
+    expect(Math.abs(sameDayGaps[0]! - sameDayGaps[1]!)).toBeLessThanOrEqual(1)
+
+    const transitions = [
+      [day12, day17],
+      [day17, day19],
+      [day19, day26]
+    ] as const
+    for (const [previous, next] of transitions) {
+      const [lastCard, firstCard] = await Promise.all([
+        previous.getByRole('button').last().boundingBox(),
+        next.getByRole('button').first().boundingBox()
+      ])
+      const dateBreak = firstCard!.y - (lastCard!.y + lastCard!.height)
+      expect(dateBreak).toBeGreaterThan(sameDayGap)
+      expect(dateBreak).toBeLessThan(2 * sameDayGap)
+    }
+
+    const divider = page.locator('#calendar-today-divider')
+    await expect(divider).toHaveAccessibleName(
+      'Today, Wednesday, September 30, 2026'
+    )
+    expect(
+      await divider.evaluate(element => element.previousElementSibling?.id)
+    ).toBe('calendar-list-day-2026-09-26')
+    expect(
+      await divider.evaluate(element => element.nextElementSibling)
+    ).toBeNull()
+    await expect(day26).toHaveCSS('border-bottom-width', '0px')
+    const [list, lastCard, label, dividerBox, firstCard] = await Promise.all([
+      page.getByRole('tabpanel', { name: 'List' }).boundingBox(),
+      day26.getByRole('button').first().boundingBox(),
+      divider.locator('p').boundingBox(),
+      divider.boundingBox(),
+      day12.getByRole('button').first().boundingBox()
+    ])
+    const textClearance = label!.y - (lastCard!.y + lastCard!.height)
+    expect(textClearance).toBeGreaterThanOrEqual(cardInset)
+    expect(dividerBox!.height).toBeCloseTo(label!.height, 1)
+    const edgeTop = firstCard!.y - list!.y
+    const edgeBottom =
+      list!.y + list!.height - (dividerBox!.y + dividerBox!.height)
+    expect(Math.abs(edgeTop - edgeBottom)).toBeLessThanOrEqual(1)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBe(width)
+    expect(await contrastRatio(page)).toBeGreaterThanOrEqual(4.5)
+    expect(errors).toEqual([])
+    await testInfo.attach(`Sparse List at ${width}px`, {
+      body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
+      contentType: 'image/png'
+    })
+    expect(await subscriptionUrl(page)).toBe(
+      'webcal://localhost:8787/dtsm-events.ics'
+    )
+  })
 }
 
 test('Today boundary grows with wrapped label content', async ({ page }) => {
@@ -238,15 +338,24 @@ for (const [instant, position] of [
     const ordinaryRule = page
       .locator('#calendar-list-day-2026-09-05')
       .locator('xpath=following-sibling::*[1]')
-    const [ordinaryRuleBox, labelBox] = await Promise.all([
-      ordinaryRule.boundingBox(),
-      divider.locator('p').boundingBox()
-    ])
-    const ordinaryLine = ordinaryRuleBox!.y + ordinaryRuleBox!.height / 2
+    const labelBox = await divider.locator('p').boundingBox()
     expect(dividerBox!.y).toBeGreaterThanOrEqual(listBox!.y)
     expect(dividerBox!.y + dividerBox!.height).toBeLessThanOrEqual(
       listBox!.y + listBox!.height
     )
+    const row12 = page.locator('#calendar-list-day-2026-09-12')
+    const firstSameDay = await row12.getByRole('button').first().boundingBox()
+    const secondSameDay = await row12.getByRole('button').nth(1).boundingBox()
+    const sameDayGap =
+      secondSameDay!.y - (firstSameDay!.y + firstSameDay!.height)
+    const cardInset = await row12
+      .getByRole('button')
+      .first()
+      .evaluate(element =>
+        Number.parseFloat(getComputedStyle(element).paddingTop)
+      )
+    expect(sameDayGap).toBeGreaterThanOrEqual(cardInset)
+    await expect(ordinaryRule).toHaveCSS('height', '1px')
     if (position === 'start') {
       expect(
         await divider.evaluate(element => element.previousElementSibling)
@@ -257,19 +366,13 @@ for (const [instant, position] of [
           .getByRole('button')
           .first()
           .boundingBox(),
-        page
-          .locator('#calendar-list-day-2026-09-12')
-          .getByRole('button')
-          .first()
-          .boundingBox()
+        row12.getByRole('button').first().boundingBox()
       ])
-      expect(
-        Math.abs(
-          firstCard!.y -
-            (labelBox!.y + labelBox!.height) -
-            (nextCard!.y - ordinaryLine)
-        )
-      ).toBeLessThanOrEqual(2)
+      const textClearance = firstCard!.y - (labelBox!.y + labelBox!.height)
+      const ordinaryDateBreak = nextCard!.y - (firstCard!.y + firstCard!.height)
+      expect(textClearance).toBeGreaterThanOrEqual(cardInset)
+      expect(ordinaryDateBreak).toBeGreaterThan(sameDayGap)
+      expect(ordinaryDateBreak).toBeLessThan(2 * sameDayGap)
       expect(labelBox!.y - listBox!.y).toBeGreaterThan(0)
     } else {
       expect(
@@ -279,7 +382,7 @@ for (const [instant, position] of [
         'border-bottom-width',
         '0px'
       )
-      const [lastCard, earlierCard] = await Promise.all([
+      const [lastCard, earlierCard, nextCard] = await Promise.all([
         page
           .locator('#calendar-list-day-2026-09-26')
           .getByRole('button')
@@ -289,28 +392,20 @@ for (const [instant, position] of [
           .locator('#calendar-list-day-2026-09-05')
           .getByRole('button')
           .first()
-          .boundingBox()
+          .boundingBox(),
+        row12.getByRole('button').first().boundingBox()
       ])
-      const todayClearance = labelBox!.y - (lastCard!.y + lastCard!.height)
+      const textClearance = labelBox!.y - (lastCard!.y + lastCard!.height)
       const edgeInset =
         listBox!.y + listBox!.height - (labelBox!.y + labelBox!.height)
-      const firstSameDay = await page
-        .locator('#calendar-list-day-2026-09-12')
-        .getByRole('button')
-        .first()
-        .boundingBox()
-      const secondSameDay = await page
-        .locator('#calendar-list-day-2026-09-12')
-        .getByRole('button')
-        .nth(1)
-        .boundingBox()
-      const sameDayGap =
-        secondSameDay!.y - (firstSameDay!.y + firstSameDay!.height)
-      expect(todayClearance).toBeGreaterThan(sameDayGap)
-      expect(edgeInset).toBeGreaterThan(sameDayGap)
-      expect(
-        ordinaryLine - (earlierCard!.y + earlierCard!.height)
-      ).toBeGreaterThan(sameDayGap)
+      const edgeTop = earlierCard!.y - listBox!.y
+      const ordinaryDateBreak =
+        nextCard!.y - (earlierCard!.y + earlierCard!.height)
+      expect(textClearance).toBeGreaterThanOrEqual(cardInset)
+      expect(edgeInset).toBeGreaterThan(0)
+      expect(Math.abs(edgeInset - edgeTop)).toBeLessThanOrEqual(1)
+      expect(ordinaryDateBreak).toBeGreaterThan(sameDayGap)
+      expect(ordinaryDateBreak).toBeLessThan(2 * sameDayGap)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)
