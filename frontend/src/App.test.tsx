@@ -1,12 +1,19 @@
 import { ChakraProvider } from '@chakra-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { setMedia } from './test-setup'
 import { system } from './theme'
 import { visualCalendar, visualOptions } from './visual-fixtures'
+
+afterEach(() => vi.useRealTimers())
+
+function fixToday(instant: string) {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(instant))
+}
 
 function renderApp() {
   const client = new QueryClient({
@@ -30,6 +37,230 @@ async function renderScenario(scenario = 'busy') {
 }
 
 describe('Calendar explorer', () => {
+  it.each([
+    ['2026-09-20T12:00:00-07:00', '2026-09-26', 'Today · Sun, Sep 20'],
+    ['2026-09-26T12:00:00-07:00', '2026-09-26', 'Today · Sat, Sep 26'],
+    ['2026-09-30T12:00:00-07:00', null, 'Today · Wed, Sep 30'],
+    ['2026-09-01T12:00:00-07:00', '2026-09-05', 'Today · Tue, Sep 1']
+  ])('places one List boundary for %s', async (instant, nextDay, label) => {
+    fixToday(instant)
+    const user = userEvent.setup()
+    await renderScenario()
+    await user.click(screen.getByRole('tab', { name: 'List' }))
+    const divider = document.getElementById('calendar-today-divider')
+    expect(divider).toHaveTextContent(label)
+    expect(divider?.nextElementSibling?.id || null).toBe(
+      nextDay ? `calendar-list-day-${nextDay}` : null
+    )
+    expect(
+      screen.getByRole('button', { name: /Go to today,/ })
+    ).toHaveTextContent(`Today · ${label.split(', ')[1]}`)
+    expect(divider?.querySelector('button')).toBeNull()
+  })
+
+  it('keeps current-month List selection and the subscription when Today focuses the divider', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    setMedia('(max-width: 700px)', true)
+    const user = userEvent.setup()
+    await renderScenario()
+    const selected = screen.getByRole('button', { name: /Yoga in the Park/ })
+    await user.click(selected)
+    expect(selected).toHaveAttribute('aria-expanded', 'true')
+    const today = screen.getByRole('button', { name: /Go to today,/ })
+    const stored = localStorage.getItem('calendar-explorer:v1')
+    await user.click(today)
+    await waitFor(() =>
+      expect(document.getElementById('calendar-today-divider')).toHaveFocus()
+    )
+    expect(selected).toHaveAttribute('aria-expanded', 'true')
+    expect(localStorage.getItem('calendar-explorer:v1')).toBe(stored)
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+    expect(screen.getByText('Apple Calendar').closest('a')).toHaveAttribute(
+      'href',
+      'webcal://localhost:8787/dtsm-events.ics'
+    )
+  })
+
+  it('changes another List month, clears selection, and focuses today', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    const user = userEvent.setup()
+    await renderScenario()
+    await user.click(screen.getByRole('tab', { name: 'List' }))
+    await user.click(screen.getByRole('button', { name: /Yoga in the Park/ }))
+    await user.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    await waitFor(() =>
+      expect(document.getElementById('calendar-today-divider')).toHaveFocus()
+    )
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      'September 2026'
+    )
+    expect(screen.getByRole('tab', { name: 'List' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+  })
+
+  it('shows a disabled date cue in current Grid and empty List states', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    const user = userEvent.setup()
+    const first = await renderScenario()
+    expect(screen.getByRole('button', { name: /Go to today,/ })).toBeDisabled()
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    first.unmount()
+    window.history.replaceState({}, '', '/?__scenario=empty')
+    renderApp()
+    await screen.findByText(/No events in September 2026/)
+    await user.click(screen.getByRole('tab', { name: 'List' }))
+    expect(screen.getByRole('button', { name: /Go to today,/ })).toBeDisabled()
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+  })
+
+  it('returns from another month in Grid without switching views or scrolling', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    const user = userEvent.setup()
+    await renderScenario()
+    await user.click(screen.getByRole('button', { name: 'Next month' }))
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    expect(screen.getByRole('tab', { name: 'Grid' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('waits for a List feed after Today and cancels the jump when the view changes', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({ month: '2026-10', view: 'list' })
+    )
+    let resolveFeed!: () => void
+    const feed = new Promise<void>(resolve => {
+      resolveFeed = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/options.json'))
+        return new Response(JSON.stringify(visualOptions))
+      await feed
+      return new Response(
+        visualCalendar('busy', 'dtsm', 'http://localhost:8787/dtsm-events.ics')
+      )
+    })
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    expect(screen.getByText('Loading calendar…')).toBeVisible()
+    await user.click(screen.getByRole('tab', { name: 'Grid' }))
+    resolveFeed()
+    await screen.findByRole('button', { name: /Yoga in the Park/ })
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('cancels a pending Today jump when a filter changes', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({ month: '2026-10', view: 'list' })
+    )
+    let resolveFeed!: () => void
+    const feed = new Promise<void>(resolve => {
+      resolveFeed = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/options.json'))
+        return new Response(JSON.stringify(visualOptions))
+      await feed
+      return new Response(
+        visualCalendar('busy', 'dtsm', 'http://localhost:8787/dtsm-events.ics')
+      )
+    })
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    await user.click(screen.getByRole('button', { name: 'Type: All types' }))
+    await user.click(await screen.findByRole('checkbox', { name: 'Events' }))
+    resolveFeed()
+    await screen.findByRole('button', { name: /Yoga in the Park/ })
+    expect(
+      document.getElementById('calendar-today-divider')
+    ).toBeInTheDocument()
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('cancels a pending Today jump if the LA month changes while loading', async () => {
+    fixToday('2026-10-01T06:59:59Z')
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({ month: '2026-10', view: 'list' })
+    )
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) =>
+      String(input).endsWith('/options.json')
+        ? new Response(JSON.stringify(visualOptions))
+        : new Promise<Response>(() => undefined)
+    )
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    vi.setSystemTime(new Date('2026-10-01T07:00:01Z'))
+    act(() => window.dispatchEvent(new Event('focus')))
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      'September 2026'
+    )
+    expect(
+      screen.getByRole('button', { name: /Go to today,/ })
+    ).toHaveTextContent('Today · Oct 1')
+  })
+
+  it('returns from another month without a divider for an intentionally empty filter', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({
+        month: '2026-10',
+        view: 'list',
+        filters: { dtsm: { venueIds: [] } }
+      })
+    )
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      'September 2026'
+    )
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    expect(screen.getByRole('button', { name: /Go to today,/ })).toBeDisabled()
+  })
+
+  it('does not leave a divider in failed or intentionally empty List states', async () => {
+    fixToday('2026-09-20T12:00:00-07:00')
+    localStorage.setItem(
+      'calendar-explorer:v1',
+      JSON.stringify({ view: 'list' })
+    )
+    window.history.replaceState({}, '', '/?__scenario=feed-error')
+    const first = renderApp()
+    await screen.findByText(
+      /Couldn’t load this calendar/,
+      {},
+      { timeout: 3000 }
+    )
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    expect(screen.getByRole('button', { name: /Go to today,/ })).toBeDisabled()
+    first.unmount()
+    window.history.replaceState({}, '', '/?__scenario=busy')
+    renderApp()
+    await screen.findByRole('button', { name: /Yoga in the Park/ })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Type: All types' }))
+    const allTypes = await screen.findByRole('checkbox', { name: 'All types' })
+    await user.click(allTypes)
+    expect(document.getElementById('calendar-today-divider')).toBeNull()
+    expect(screen.getByRole('button', { name: /Go to today,/ })).toBeDisabled()
+  })
+
   it('renders the settled default calendar and persists navigation', async () => {
     const user = userEvent.setup()
     await renderScenario()
@@ -53,7 +284,7 @@ describe('Calendar explorer', () => {
       /September 2026/
     )
     await user.click(screen.getByRole('button', { name: 'Next month' }))
-    await user.click(screen.getByRole('button', { name: 'Go to today' }))
+    await user.click(screen.getByRole('button', { name: /Go to today,/ }))
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
       /September 2026/
     )

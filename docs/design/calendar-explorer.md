@@ -132,6 +132,30 @@ or emptiness never broadens or erases persisted intent.
 - Grid days remain square-ish and keep a representative busy-day overflow.
 - Mobile dots are status indicators. The whole day is the target.
 - Both representations explain sparse, empty, loading, and failed results.
+- One `America/Los_Angeles` calendar date drives Grid's today marker, the
+  toolbar cue, the List divider, and the Today action. It is transient and never
+  changes the selected preview month at midnight.
+- A successfully loaded current-month List with events shows one quiet,
+  full-width divider before today's date group, or between adjacent event
+  dates when today has no event. It sits at the start or end if all events are
+  later or earlier. It is not an event, target, filter, or count item; its thin
+  rules are decorative and its date text is available to assistive technology.
+  One List boundary owns every separator. It renders either a plain rule or the
+  Today-labelled rule; event rows draw no separator. One 8px List vertical rhythm
+  governs the panel edges, row padding, gaps between same-day cards, and
+  distances to ordinary rules. The Today label occupies its text height in the
+  layout, with 8px clearance from the adjacent cards on both sides. Measuring
+  only its rule would miss text crowding. An ordinary rule appears only between
+  date groups, never after the last one.
+  Other months, loading, failure, no-event months, and intentionally empty
+  filters have no divider. Past event cards keep their normal appearance.
+- The month toolbar shows `Today · <short month and day>` with the full date and
+  action in its accessible name. It scrolls with the page. From another month,
+  Today changes only the preview month and, in List with events, focuses and
+  scrolls to the divider. In current-month List, it focuses and scrolls there
+  without clearing selection. In current-month Grid or a no-event List, the
+  legible date cue remains visible but the action is disabled. Load, filter
+  changes, and midnight never trigger a jump.
 - Add to calendar uses the exact current canonical filtered URL.
 - Apple/default clients may use `webcal:`. Google and Outlook receive truthful
   copy-and-subscribe instructions. Copy remains a fallback, not the concept.
@@ -213,6 +237,8 @@ needed to prevent recurrence.
 | Invented taxonomy hid production aliases/tags                | Remote D1 was never inspected                                                                                                                | Query production before UI taxonomy                                                                                                           | SQL, Wrangler JSON, grouped IDs                                                                    |
 | Menu indicators crossed option labels                        | Custom padding overwrote reserved anatomy                                                                                                    | Preserve compound geometry                                                                                                                    | Zero control/label overlap                                                                         |
 | Type at 320px shipped narrow with a giant All-row ring (#39) | Places was sampled at 320px while Type/Organizer were sampled only on desktop; `_focusWithin` styled the whole row for pointer-initial focus | Cover each distinct surface at every geometry-changing viewport; pointer and keyboard focus are separate states; narrow panels match triggers | Playwright screenshots plus trigger/panel, row/control/label, focus-style, and viewport assertions |
+| Today cue doubled rules and broke List rhythm (#43)          | A row and cue split one boundary; 12px outer, 16px row, 7px card, and 10px label values also split one rhythm                                | One boundary owner and one List rhythm; no trailing ordinary rule                                                                             | One rule; compare top, same-day, rule, and bottom gaps within 2px                                  |
+| Today text touched event cards (#43)                         | Measuring rule centers missed the 17px text box; compressing its flow slot erased the clearance                                              | Label occupies its text height with 8px clearance on both sides                                                                               | Browser measures text bounds against adjacent cards at every width and edge                        |
 
 ## Executable visual denominator
 
@@ -228,9 +254,19 @@ of surface, viewport, and state. A screenshot proves only the captured cell.
 | Organizer            | Default                               | Default, long-label search                 | Default, long-label search                               |
 | Grid/overflow/detail | Hidden collection, event detail, Back | —                                          | Compact Grid to List                                     |
 | List/detail          | Event detail                          | Inline detail                              | Inline detail                                            |
+| Today in List        | Today event, no event today, action   | Today event, no event today, action        | Today event, no event today, action and focus            |
+| Today in Grid        | Existing day marker and disabled cue  | Existing day marker and disabled cue       | Existing day marker and disabled cue                     |
+| Today transitions    | Other month, pointer action           | Other month, pointer action                | Other month, keyboard/pointer, empty/error, rollover     |
 
-`frontend/e2e/calendar-explorer.visual.spec.ts` executes this matrix against
-the real Vite application and deterministic production-shaped fixtures.
+`frontend/e2e/calendar-explorer.visual.spec.ts` and
+`frontend/e2e/today-divider.visual.spec.ts` execute this matrix against the
+real Vite application and deterministic production-shaped fixtures. The Today
+cells also use a fixed LA clock to assert divider position, visible and
+accessible dates, focus and scroll behavior, target geometry, document width,
+computed contrast, one List rhythm from the first edge through same-day cards,
+ordinary rules and the Today text box to the final edge, clean runtime logs,
+and unchanged canonical subscription URLs. A date rollover changes the cue and
+marker without changing the preview month or moving the page.
 Playwright snapshots catch composition. DOM rectangle and computed-style
 assertions enforce alignment, containment, target size, overlap, focus, and
 document width. Both are required.

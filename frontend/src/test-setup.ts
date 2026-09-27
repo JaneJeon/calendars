@@ -27,12 +27,15 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
   }
 })
 
+Element.prototype.scrollIntoView = vi.fn()
+
 export function setMedia(query: string, value: boolean) {
   queries.set(query, value)
 }
 
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
   localStorage.clear()
   queries.clear()
   window.history.replaceState({}, '', '/')

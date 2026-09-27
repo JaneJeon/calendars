@@ -18,8 +18,9 @@ surface × viewport × interaction-state denominator executable.
 - `components/ExplorerHeader.tsx` owns calendar identity and subscription
   actions. `ExplorerFilters.tsx` owns per-calendar filter controls.
   `CalendarPanel.tsx` owns period and representation controls,
-  `CalendarViews.tsx` owns Grid/List and busy-day overflow, and
-  `EventDetails.tsx` owns event representations and disclosure.
+  `CalendarViews.tsx` owns Grid/List, their single date-group boundary and List
+  vertical rhythm, and busy-day overflow. `EventDetails.tsx` owns event
+  representations and disclosure.
 - `content.ts` owns feed identity and reset-type labels; `use-media.ts` owns
   responsive observation. Component-specific interface copy stays with its
   component.
@@ -29,6 +30,9 @@ surface × viewport × interaction-state denominator executable.
 - `calendar.ts` parses ICS with `ical.js` into one event-self and projects
   multi-day events onto `America/Los_Angeles` dates. All-day `DTEND` remains
   exclusive.
+- `use-today.ts` keeps one transient LA calendar date for the toolbar, List
+  divider, Grid marker, and Today action, refreshing at the next LA date and
+  when the tab resumes.
 - `filters.ts` owns validated persistence, DTSM option reconciliation, grouped
   raw-ID selection, and canonical subscription URL construction.
 - `theme.ts` owns the dark semantic tokens and the verified contrast-pair
@@ -127,8 +131,12 @@ npx playwright install chromium webkit
 
 `npm run test:browser:update` regenerates the current platform's snapshots.
 `npm run test:browser:update:linux` uses the pinned official Playwright Docker
-image to regenerate the Linux baselines used by CI without replacing the
-host's `node_modules`. CI runs the browser job inside that same pinned image.
+image on an x86_64 host to regenerate the Linux baselines used by CI without
+replacing the host's `node_modules`. The script stops on arm64 because the
+multi-arch image renders different pixels, while x86 emulation cannot run
+Chromium on this Mac. CI runs the browser job inside the pinned image on x86_64.
+When a CI screenshot fails, inspect its uploaded expected, actual, and diff
+images before updating that baseline.
 
 The post-deploy browser smoke uses the immutable Version URL of the active
 frontend Worker. GitHub-hosted runners receive HTTP 403 from the production

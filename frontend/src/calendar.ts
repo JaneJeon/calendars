@@ -297,8 +297,24 @@ export function projectionsForMonth(
 }
 
 export function currentMonth(now = new Date()): string {
-  const date = dateFromInstant(now)
-  return `${date.year}-${pad(date.month)}`
+  return todayDateKey(now).slice(0, 7)
+}
+
+export function todayDateKey(now = new Date()): string {
+  return dateKey(dateFromInstant(now))
+}
+
+export function millisecondsUntilNextLaDate(now: Date): number {
+  const start = now.getTime()
+  const today = todayDateKey(now)
+  let before = start
+  let after = start + 30 * 60 * 60 * 1000
+  while (after - before > 1) {
+    const middle = Math.floor((before + after) / 2)
+    if (todayDateKey(new Date(middle)) === today) before = middle
+    else after = middle
+  }
+  return Math.max(1, after - start)
 }
 
 export function shiftMonth(month: string, amount: number): string {
@@ -334,6 +350,14 @@ export function monthGrid(month: string): CalendarDate[] {
 
 export function fullDate(key: string): string {
   return fullDateFormatter.format(utcDate(dateFromKey(key)))
+}
+
+export function shortDate(key: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC'
+  }).format(utcDate(dateFromKey(key)))
 }
 
 export function shortWeekday(key: string): string {
