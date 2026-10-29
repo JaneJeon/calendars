@@ -27,7 +27,7 @@
   "devDependencies": {
     "@aetherball/swarp": "^0.4.0",
     "@janejeon/prettier-config": "^2.0.0",
-    "@types/node": "^24.13.4",
+    "@types/node": "^26.0.0",
     "@vitest/coverage-istanbul": "^4.1.11",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.10",
